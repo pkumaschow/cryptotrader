@@ -38,7 +38,7 @@ def _configure_logging(tui: bool) -> None:
 
 async def _run(tui: bool) -> None:
     settings = get_settings()
-    database.init_db(settings.database.path)
+    database.init_db(settings.database.path, read_only=tui)
 
     pairs = list(settings.currencies.keys())
     logger.info("Starting CryptoTrader | mode=%s | pairs=%s", settings.mode.active, pairs)

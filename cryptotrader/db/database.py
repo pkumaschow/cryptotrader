@@ -24,33 +24,38 @@ def _from_naive(dt: datetime) -> datetime:
 
 _lock = threading.Lock()
 _conn: Optional[duckdb.DuckDBPyConnection] = None
+_read_only: bool = False
 
 
-def init_db(path: str) -> None:
-    global _conn
+def init_db(path: str, read_only: bool = False) -> None:
+    global _conn, _read_only
+    _read_only = read_only
     with _lock:
         if _conn is not None:
             _conn.close()
-        _conn = duckdb.connect(path)
-        _conn.execute("CREATE SEQUENCE IF NOT EXISTS trades_id_seq START 1")
-        _conn.execute("""
-            CREATE TABLE IF NOT EXISTS trades (
-                id        BIGINT      PRIMARY KEY DEFAULT nextval('trades_id_seq'),
-                pair      VARCHAR     NOT NULL,
-                side      VARCHAR     NOT NULL,
-                price     DOUBLE      NOT NULL,
-                quantity  DOUBLE      NOT NULL,
-                timestamp TIMESTAMP   NOT NULL,
-                mode      VARCHAR     NOT NULL,
-                strategy  VARCHAR     NOT NULL DEFAULT 'unknown',
-                pnl       DOUBLE,
-                txid      VARCHAR
-            )
-        """)
+        _conn = duckdb.connect(path, read_only=read_only)
+        if not read_only:
+            _conn.execute("CREATE SEQUENCE IF NOT EXISTS trades_id_seq START 1")
+            _conn.execute("""
+                CREATE TABLE IF NOT EXISTS trades (
+                    id        BIGINT      PRIMARY KEY DEFAULT nextval('trades_id_seq'),
+                    pair      VARCHAR     NOT NULL,
+                    side      VARCHAR     NOT NULL,
+                    price     DOUBLE      NOT NULL,
+                    quantity  DOUBLE      NOT NULL,
+                    timestamp TIMESTAMP   NOT NULL,
+                    mode      VARCHAR     NOT NULL,
+                    strategy  VARCHAR     NOT NULL DEFAULT 'unknown',
+                    pnl       DOUBLE,
+                    txid      VARCHAR
+                )
+            """)
 
 
 def insert_trade(path: str, trade: Trade) -> int:
     assert _conn is not None, "Database not initialised — call init_db first"
+    if _read_only:
+        return -1
     with _lock:
         row = _conn.execute(
             """
