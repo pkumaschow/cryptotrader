@@ -29,7 +29,7 @@ class KrakenWebSocket:
         self._price_queue = price_queue
         self._last_tick_time: float = 0.0
         self._running = False
-        self._ws: websockets.WebSocketClientProtocol | None = None
+        self._ws: websockets.asyncio.client.ClientConnection | None = None
         self._backoff_attempt: int = 0
 
     async def run(self) -> None:
@@ -49,29 +49,33 @@ class KrakenWebSocket:
 
     async def _connect_loop(self) -> None:
         while self._running:
+            ws = None
             try:
                 logger.info("Connecting to Kraken WS (attempt %d)", self._backoff_attempt + 1)
-                async with websockets.connect(
-                    _WS_URL,
-                    open_timeout=15,
-                    ping_interval=20,
-                    ping_timeout=10,
-                    additional_headers={"User-Agent": "cryptotrader/0.1.0"},
-                ) as ws:
-                    self._ws = ws
-                    await ws.send(json.dumps({
-                        "method": "subscribe",
-                        "params": {
-                            "channel": "ticker",
-                            "symbol": self._pairs,
-                        },
-                    }))
-                    self._last_tick_time = asyncio.get_event_loop().time()
-                    async for raw in ws:
-                        if not self._running:
-                            break
-                        self._dispatch(raw)
-                    self._ws = None
+                ws = await asyncio.wait_for(
+                    websockets.connect(
+                        _WS_URL,
+                        ping_interval=20,
+                        ping_timeout=10,
+                        additional_headers={"User-Agent": "cryptotrader/0.1.0"},
+                    ),
+                    timeout=15,
+                )
+                self._ws = ws
+                await ws.send(json.dumps({
+                    "method": "subscribe",
+                    "params": {
+                        "channel": "ticker",
+                        "symbol": self._pairs,
+                    },
+                }))
+                self._last_tick_time = asyncio.get_event_loop().time()
+                async for raw in ws:
+                    if not self._running:
+                        break
+                    self._dispatch(raw)
+            except asyncio.TimeoutError:
+                logger.warning("WS connect timed out after 15s — will retry")
             except ConnectionClosed as exc:
                 logger.warning("WS connection closed: %s", exc)
             except InvalidStatus as exc:
@@ -82,6 +86,13 @@ class KrakenWebSocket:
                     logger.error("WS handshake rejected: %s", exc)
             except Exception:
                 logger.exception("WS error")
+            finally:
+                self._ws = None
+                if ws is not None:
+                    try:
+                        await ws.close()
+                    except Exception:
+                        pass
 
             if not self._running:
                 break
