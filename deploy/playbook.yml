@@ -39,6 +39,17 @@
           - "--exclude=.env"
           - "--exclude=cryptotrader.db"
 
+    - name: Create .env file if it does not exist
+      ansible.builtin.copy:
+        dest: "{{ deploy_path }}/.env"
+        content: |
+          KRAKEN_API_KEY=
+          KRAKEN_API_SECRET=
+        force: false   # never overwrite an existing .env
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0600"
+
     - name: Create Python virtualenv
       ansible.builtin.command:
         cmd: python3 -m venv "{{ deploy_path }}/venv"
