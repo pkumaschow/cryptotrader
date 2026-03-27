@@ -5,8 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=cryptotrader
-Group=cryptotrader
+User=peterk
+Group=peterk
 WorkingDirectory=/opt/cryptotrader
 EnvironmentFile=-/opt/cryptotrader/.env
 ExecStart=/opt/cryptotrader/venv/bin/python -m cryptotrader.main

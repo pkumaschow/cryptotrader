@@ -18,14 +18,6 @@
         mode: "0755"
       become: true
 
-    - name: Ensure cryptotrader system user exists
-      ansible.builtin.user:
-        name: "{{ service_name }}"
-        system: true
-        create_home: false
-        shell: /usr/sbin/nologin
-      become: true
-
     - name: Sync project source
       ansible.posix.synchronize:
         src: "{{ repo_root }}/"
