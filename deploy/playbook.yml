@@ -1,0 +1,99 @@
+---
+- name: Deploy CryptoTrader to Raspberry Pi
+  hosts: pi
+  become: false
+
+  vars:
+    deploy_path: /opt/cryptotrader
+    service_name: cryptotrader
+    repo_root: "{{ playbook_dir }}/.."
+
+  tasks:
+    - name: Create deploy directory
+      ansible.builtin.file:
+        path: "{{ deploy_path }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0755"
+      become: true
+
+    - name: Ensure cryptotrader system user exists
+      ansible.builtin.user:
+        name: "{{ service_name }}"
+        system: true
+        create_home: false
+        shell: /usr/sbin/nologin
+      become: true
+
+    - name: Sync project source
+      ansible.posix.synchronize:
+        src: "{{ repo_root }}/"
+        dest: "{{ deploy_path }}/"
+        delete: true
+        rsync_opts:
+          - "--exclude=.git"
+          - "--exclude=.venv"
+          - "--exclude=__pycache__"
+          - "--exclude=*.pyc"
+          - "--exclude=.env"
+          - "--exclude=cryptotrader.db"
+
+    - name: Create Python virtualenv
+      ansible.builtin.command:
+        cmd: python3 -m venv "{{ deploy_path }}/venv"
+        creates: "{{ deploy_path }}/venv/bin/activate"
+
+    - name: Upgrade pip
+      ansible.builtin.pip:
+        name: pip
+        state: latest
+        virtualenv: "{{ deploy_path }}/venv"
+
+    - name: Install project dependencies
+      ansible.builtin.pip:
+        name: "{{ deploy_path }}"
+        extra_args: "-e"
+        virtualenv: "{{ deploy_path }}/venv"
+
+    - name: Install systemd service file
+      ansible.builtin.copy:
+        src: "{{ deploy_path }}/deploy/{{ service_name }}.service"
+        dest: "/etc/systemd/system/{{ service_name }}.service"
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0644"
+      become: true
+      notify: Reload systemd
+
+    - name: Enable and start service
+      ansible.builtin.systemd:
+        name: "{{ service_name }}"
+        enabled: true
+        state: restarted
+        daemon_reload: true
+      become: true
+
+    - name: Show service status
+      ansible.builtin.command: systemctl status {{ service_name }} --no-pager
+      become: true
+      register: service_status
+      changed_when: false
+
+    - name: Print service status
+      ansible.builtin.debug:
+        msg: "{{ service_status.stdout_lines }}"
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+      become: true
+
+  post_tasks:
+    - name: Show useful commands
+      ansible.builtin.debug:
+        msg:
+          - "Logs:    journalctl -fu {{ service_name }}"
+          - "TUI:     cd {{ deploy_path }} && venv/bin/python -m cryptotrader.main --tui"
