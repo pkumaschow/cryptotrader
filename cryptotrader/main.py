@@ -55,6 +55,17 @@ async def _run(tui: bool) -> None:
     trader_task = asyncio.create_task(trader.run())
 
     if tui:
+        # Disable all terminal mouse-tracking modes before Textual initialises.
+        # Over SSH, mouse events can leak as literal text during the brief window
+        # between process start and Textual entering raw mode.
+        sys.stdout.write(
+            "\x1b[?1000l"  # disable X10 mouse
+            "\x1b[?1002l"  # disable button-event mouse
+            "\x1b[?1003l"  # disable all-motion mouse
+            "\x1b[?1006l"  # disable SGR extended mouse
+            "\x1b[?1015l"  # disable URXVT extended mouse
+        )
+        sys.stdout.flush()
         from cryptotrader.tui.app import CryptoTraderApp
         app = CryptoTraderApp(tui_price_queue, trade_queue)
         try:
