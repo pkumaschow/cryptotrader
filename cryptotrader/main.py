@@ -18,12 +18,21 @@ from cryptotrader.exchange.kraken_ws import KrakenWebSocket
 from cryptotrader.models import PriceTick, Trade
 from cryptotrader.trader import Trader
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s — %(message)s",
-    stream=sys.stdout,
-)
 logger = logging.getLogger(__name__)
+
+
+def _configure_logging(tui: bool) -> None:
+    fmt = "%(asctime)s %(levelname)s %(name)s — %(message)s"
+    if tui:
+        # Textual owns the terminal — write logs to file to avoid ANSI garbage
+        logging.basicConfig(
+            level=logging.INFO,
+            format=fmt,
+            filename="cryptotrader.log",
+            filemode="a",
+        )
+    else:
+        logging.basicConfig(level=logging.INFO, format=fmt, stream=sys.stdout)
 
 
 async def _run(tui: bool) -> None:
@@ -65,6 +74,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="CryptoTrader")
     parser.add_argument("--tui", action="store_true", help="Launch interactive TUI")
     args = parser.parse_args()
+    _configure_logging(tui=args.tui)
 
     try:
         asyncio.run(_run(tui=args.tui))
