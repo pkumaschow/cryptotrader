@@ -48,6 +48,7 @@ deploy:
     - bash deploy/deploy.sh
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual   # run manually via GitLab UI until runner is configured
   environment:
     name: production
     url: http://pihole.homelab.com
