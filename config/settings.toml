@@ -14,12 +14,12 @@ stats_refresh_interval = 5
 
 [currencies."BTC/USD"]
 strategy = "threshold"
-buy_trigger = 68000.00
-sell_trigger = 69500.00
+buy_trigger = 70000.00   # above current ~68645 → BUY fires immediately
+sell_trigger = 68000.00  # below current bid → SELL fires immediately after BUY
 quantity = 0.001
 
 [currencies."ETH/USD"]
 strategy = "threshold"
-buy_trigger = 2040.00
-sell_trigger = 2100.00
+buy_trigger = 2100.00    # above current ~2063 → BUY fires immediately
+sell_trigger = 2050.00   # below current bid → SELL fires immediately after BUY
 quantity = 0.05
