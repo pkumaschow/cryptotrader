@@ -37,14 +37,18 @@ path = "test_cryptotrader.db"
 
 [currencies."BTC/USD"]
 strategy = "threshold"
+quantity = 0.001
+
+[currencies."BTC/USD".threshold]
 buy_trigger = 50000.0
 sell_trigger = 60000.0
-quantity = 0.001
 
 [currencies."ETH/USD"]
 strategy = "threshold"
+quantity = 0.01
+
+[currencies."ETH/USD".threshold]
 buy_trigger = 2000.0
 sell_trigger = 3000.0
-quantity = 0.01
 """)
     return str(config)

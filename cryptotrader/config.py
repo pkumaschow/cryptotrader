@@ -9,11 +9,35 @@ from pydantic import BaseModel, field_validator
 from pydantic_settings import BaseSettings
 
 
+class ThresholdParams(BaseModel):
+    buy_trigger: float = 0.0
+    sell_trigger: float = 0.0
+
+
+class EMAParams(BaseModel):
+    fast_period: int = 20
+    slow_period: int = 50
+    atr_period: int = 14
+    atr_min_pct: float = 0.5
+
+
+class BollingerParams(BaseModel):
+    period: int = 20
+    std_dev: float = 2.0
+
+
+class TrendPullbackParams(BaseModel):
+    trend_ema_period: int = 50
+    pullback_ema_period: int = 20
+
+
 class CurrencyConfig(BaseModel):
-    strategy: str
-    buy_trigger: float
-    sell_trigger: float
+    strategy: str = "ema"
     quantity: float
+    threshold: ThresholdParams = ThresholdParams()
+    ema: EMAParams = EMAParams()
+    bollinger: BollingerParams = BollingerParams()
+    trend_pullback: TrendPullbackParams = TrendPullbackParams()
 
 
 class ModeConfig(BaseModel):

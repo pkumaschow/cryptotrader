@@ -24,12 +24,25 @@ class PriceTick:
 
 
 @dataclass
+class Candle:
+    pair: str
+    timeframe: int
+    open: float
+    high: float
+    low: float
+    close: float
+    tick_count: int
+    timestamp: datetime
+
+
+@dataclass
 class Trade:
     pair: str
     side: Side
     price: float
     quantity: float
     mode: str
+    strategy: str = "unknown"
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     pnl: Optional[float] = None
     txid: Optional[str] = None
@@ -44,3 +57,4 @@ class StatsResult:
     avg_gain: float
     avg_loss: float
     pair: Optional[str] = None
+    strategy: Optional[str] = None

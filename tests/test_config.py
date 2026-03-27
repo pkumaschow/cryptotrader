@@ -14,8 +14,8 @@ def test_load_settings(test_config_path):
 def test_currency_config(test_config_path):
     settings = get_settings(test_config_path)
     btc = settings.currencies["BTC/USD"]
-    assert btc.buy_trigger == 50000.0
-    assert btc.sell_trigger == 60000.0
+    assert btc.threshold.buy_trigger == 50000.0
+    assert btc.threshold.sell_trigger == 60000.0
     assert btc.quantity == 0.001
 
 

@@ -1,7 +1,6 @@
 from textual.app import ComposeResult
 from textual.widget import Widget
 from textual.widgets import Label, RichLog
-
 from cryptotrader.models import Trade
 
 
@@ -25,5 +24,6 @@ class TradeLogPanel(Widget):
         pnl_str = f"  P&L: [yellow]{trade.pnl:+.4f}[/yellow]" if trade.pnl is not None else ""
         log.write(
             f"[{color}]{trade.side.value.upper()}[/{color}] {trade.pair} "
-            f"{trade.quantity} @ {trade.price:.2f}  [{trade.mode}]  {ts}{pnl_str}"
+            f"{trade.quantity} @ {trade.price:.2f}  "
+            f"[[cyan]{trade.strategy}[/cyan]]  [{trade.mode}]  {ts}{pnl_str}"
         )

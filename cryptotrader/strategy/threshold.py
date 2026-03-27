@@ -1,20 +1,17 @@
 from typing import Optional
-
 from cryptotrader.config import CurrencyConfig
 from cryptotrader.models import PriceTick, Signal
 from cryptotrader.strategy.base import Strategy
 
 
 class ThresholdStrategy(Strategy):
-    """
-    Simple price-threshold strategy.
-    Signals BUY when ask price falls at or below buy_trigger.
-    Signals SELL when bid price rises at or above sell_trigger.
-    """
+    @property
+    def name(self) -> str:
+        return "threshold"
 
     def __init__(self, config: CurrencyConfig) -> None:
-        self._buy_trigger = config.buy_trigger
-        self._sell_trigger = config.sell_trigger
+        self._buy_trigger = config.threshold.buy_trigger
+        self._sell_trigger = config.threshold.sell_trigger
         self._in_position = False
 
     def evaluate(self, tick: PriceTick) -> Optional[Signal]:

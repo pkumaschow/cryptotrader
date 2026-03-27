@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from cryptotrader.config import CurrencyConfig
+from cryptotrader.config import CurrencyConfig, ThresholdParams
 from cryptotrader.models import PriceTick, Signal
 from cryptotrader.strategy.threshold import ThresholdStrategy
 from cryptotrader.strategy.registry import get
@@ -13,7 +13,7 @@ def make_tick(pair: str, bid: float, ask: float, last: float) -> PriceTick:
 
 
 def make_cfg(buy: float, sell: float) -> CurrencyConfig:
-    return CurrencyConfig(strategy="threshold", buy_trigger=buy, sell_trigger=sell, quantity=0.001)
+    return CurrencyConfig(strategy="threshold", threshold=ThresholdParams(buy_trigger=buy, sell_trigger=sell), quantity=0.001)
 
 
 def test_buy_signal_when_ask_at_trigger():

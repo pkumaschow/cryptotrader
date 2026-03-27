@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
 from typing import Optional
-
 from cryptotrader.models import PriceTick, Signal
 
 
 class Strategy(ABC):
+    @property
     @abstractmethod
-    def evaluate(self, tick: PriceTick) -> Optional[Signal]:
-        """Return BUY, SELL, or None based on the price tick."""
-        ...
+    def name(self) -> str: ...
+
+    @abstractmethod
+    def evaluate(self, tick: PriceTick) -> Optional[Signal]: ...
