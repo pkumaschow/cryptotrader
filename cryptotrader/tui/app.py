@@ -38,7 +38,7 @@ class CryptoTraderApp(App):
     }
     """
 
-    use_utc: reactive[bool] = reactive(False)
+    use_utc: reactive[bool] = reactive(False, init=False)
 
     def __init__(
         self,
