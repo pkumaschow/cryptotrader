@@ -97,8 +97,22 @@
       become: true
 
   post_tasks:
+    - name: Show trading statistics
+      ansible.builtin.command:
+        cmd: "{{ deploy_path }}/venv/bin/cryptotrader-stats"
+        chdir: "{{ deploy_path }}"
+      register: stats_output
+      changed_when: false
+      ignore_errors: true
+
+    - name: Print statistics
+      ansible.builtin.debug:
+        msg: "{{ stats_output.stdout_lines }}"
+      when: stats_output.rc == 0
+
     - name: Show useful commands
       ansible.builtin.debug:
         msg:
           - "Logs:    journalctl -fu {{ service_name }}"
-          - "TUI:     cd {{ deploy_path }} && venv/bin/python -m cryptotrader.main --tui"
+          - "Stats:   ssh {{ ansible_user }}@{{ ansible_host }} '{{ deploy_path }}/venv/bin/cryptotrader-stats'"
+          - "TUI:     ssh {{ ansible_user }}@{{ ansible_host }} 'cd {{ deploy_path }} && venv/bin/python -m cryptotrader.main --tui'"

@@ -26,10 +26,11 @@ dev = [
 
 [project.scripts]
 cryptotrader = "cryptotrader.main:main"
+cryptotrader-stats = "scripts.stats:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["cryptotrader*"]
+include = ["cryptotrader*", "scripts*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
