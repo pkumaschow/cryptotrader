@@ -29,6 +29,7 @@ class KrakenWebSocket:
         self._price_queue = price_queue
         self._last_tick_time: float = 0.0
         self._running = False
+        self._ws: websockets.WebSocketClientProtocol | None = None
 
     async def run(self) -> None:
         self._running = True
@@ -51,6 +52,7 @@ class KrakenWebSocket:
             try:
                 logger.info("Connecting to Kraken WS (attempt %d)", attempt + 1)
                 async with websockets.connect(_WS_URL, ping_interval=20, ping_timeout=10) as ws:
+                    self._ws = ws
                     await ws.send(json.dumps({
                         "method": "subscribe",
                         "params": {
@@ -64,6 +66,7 @@ class KrakenWebSocket:
                         if not self._running:
                             break
                         self._dispatch(raw)
+                    self._ws = None
             except ConnectionClosed as exc:
                 logger.warning("WS connection closed: %s", exc)
             except Exception as exc:
@@ -109,7 +112,6 @@ class KrakenWebSocket:
                 continue
             elapsed = asyncio.get_event_loop().time() - self._last_tick_time
             if elapsed > threshold:
-                logger.warning("Stale data: no tick in %.0fs — triggering reconnect", elapsed)
-                # Reconnect is implicit: _connect_loop will retry after the current connection closes
-                # We force it by raising a synthetic exception is not needed here;
-                # the watchdog just logs; the ping_timeout on the ws.connect will close it naturally.
+                logger.warning("Stale data: no tick in %.0fs — forcing reconnect", elapsed)
+                if self._ws is not None:
+                    await self._ws.close()
