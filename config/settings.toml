@@ -1,0 +1,25 @@
+[mode]
+# Set to "test" for paper trading with statistics.
+# Set to "production" to execute real trades on Kraken.
+active = "test"
+
+[database]
+path = "cryptotrader.db"
+
+[websocket]
+# Seconds without a price tick before reconnecting
+stale_threshold = 30
+# Stats panel refresh interval (seconds)
+stats_refresh_interval = 5
+
+[currencies.XBTUSD]
+strategy = "threshold"
+buy_trigger = 55000.00
+sell_trigger = 65000.00
+quantity = 0.001
+
+[currencies.ETHUSD]
+strategy = "threshold"
+buy_trigger = 2800.00
+sell_trigger = 3400.00
+quantity = 0.05
