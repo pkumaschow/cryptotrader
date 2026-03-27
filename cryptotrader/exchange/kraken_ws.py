@@ -30,6 +30,7 @@ class KrakenWebSocket:
         self._last_tick_time: float = 0.0
         self._running = False
         self._ws: websockets.asyncio.client.ClientConnection | None = None
+        self._receive_task: asyncio.Task | None = None
         self._backoff_attempt: int = 0
 
     async def run(self) -> None:
@@ -46,6 +47,8 @@ class KrakenWebSocket:
 
     async def stop(self) -> None:
         self._running = False
+        if self._receive_task is not None and not self._receive_task.done():
+            self._receive_task.cancel()
 
     async def _connect_loop(self) -> None:
         while self._running:
@@ -61,6 +64,7 @@ class KrakenWebSocket:
                     ),
                     timeout=15,
                 )
+                logger.info("Connected to Kraken WS")
                 self._ws = ws
                 await ws.send(json.dumps({
                     "method": "subscribe",
@@ -69,11 +73,19 @@ class KrakenWebSocket:
                         "symbol": self._pairs,
                     },
                 }))
+                logger.info("Subscription sent for pairs=%s", self._pairs)
                 self._last_tick_time = asyncio.get_event_loop().time()
-                async for raw in ws:
-                    if not self._running:
-                        break
-                    self._dispatch(raw)
+
+                # Run receive loop as a separate task so the watchdog can cancel it
+                # without deadlocking (calling ws.close() while recv is running can hang)
+                self._receive_task = asyncio.create_task(self._receive(ws))
+                try:
+                    await self._receive_task
+                except asyncio.CancelledError:
+                    logger.info("Receive loop cancelled — reconnecting")
+                finally:
+                    self._receive_task = None
+
             except asyncio.TimeoutError:
                 logger.warning("WS connect timed out after 15s — will retry")
             except ConnectionClosed as exc:
@@ -90,7 +102,7 @@ class KrakenWebSocket:
                 self._ws = None
                 if ws is not None:
                     try:
-                        await ws.close()
+                        await asyncio.wait_for(ws.close(), timeout=3)
                     except Exception:
                         pass
 
@@ -100,6 +112,12 @@ class KrakenWebSocket:
             logger.info("Reconnecting in %ds...", wait)
             await asyncio.sleep(wait)
             self._backoff_attempt += 1
+
+    async def _receive(self, ws: websockets.asyncio.client.ClientConnection) -> None:
+        async for raw in ws:
+            if not self._running:
+                return
+            self._dispatch(raw)
 
     def _dispatch(self, raw: str) -> None:
         try:
@@ -113,7 +131,7 @@ class KrakenWebSocket:
             if msg.get("success") is False or "error" in msg:
                 logger.error("Kraken WS error: %s", msg)
             else:
-                logger.debug("Kraken WS message: %s", msg)
+                logger.info("Kraken WS message: %s", msg)
 
         # Kraken WS v2 ticker messages have type=="update" and channel=="ticker"
         if channel != "ticker" or msg.get("type") not in ("snapshot", "update"):
@@ -142,7 +160,8 @@ class KrakenWebSocket:
             if self._last_tick_time == 0:
                 continue
             elapsed = asyncio.get_event_loop().time() - self._last_tick_time
+            logger.debug("Watchdog: elapsed=%.0fs threshold=%.0fs", elapsed, threshold)
             if elapsed > threshold:
-                logger.warning("Stale data: no tick in %.0fs — forcing reconnect", elapsed)
-                if self._ws is not None:
-                    await self._ws.close()
+                logger.warning("Stale data: no tick in %.0fs — cancelling receive task", elapsed)
+                if self._receive_task is not None and not self._receive_task.done():
+                    self._receive_task.cancel()
