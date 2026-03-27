@@ -20,7 +20,7 @@ def main() -> None:
     args = parser.parse_args()
 
     settings = get_settings()
-    database.init_db(settings.database.path, read_only=True)
+    database.init_db(settings.database.path)
 
     strategy_names = [args.strategy] if args.strategy else list(_REGISTRY.keys())
     pairs = [args.pair] if args.pair else list(settings.currencies.keys()) + [None]
