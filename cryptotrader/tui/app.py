@@ -20,7 +20,7 @@ from cryptotrader.tui.trade_log_panel import TradeLogPanel
 
 
 class CryptoTraderApp(App):
-    BINDINGS = [Binding("t", "toggle_tz", "Toggle UTC/Local")]
+    BINDINGS = [Binding("t", "toggle_tz", "Toggle UTC/Local", priority=True)]
 
     CSS = """
     Screen {
