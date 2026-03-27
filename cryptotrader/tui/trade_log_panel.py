@@ -20,10 +20,15 @@ class TradeLogPanel(Widget):
     def append_trade(self, trade: Trade) -> None:
         log = self.query_one("#trade-log", RichLog)
         color = "green" if trade.side.value == "buy" else "red"
-        ts = trade.timestamp.strftime("%H:%M:%S")
-        pnl_str = f"  P&L: [yellow]{trade.pnl:+.4f}[/yellow]" if trade.pnl is not None else ""
+        side_text  = trade.side.value.upper().ljust(4)
+        pair_text  = trade.pair.ljust(7)
+        qty_text   = f"{trade.quantity:.5f}"
+        price_text = f"{trade.price:>10.2f}"
+        strat_text = (trade.strategy or "unknown").ljust(14)
+        mode_text  = trade.mode.ljust(4)
+        ts         = trade.timestamp.strftime("%H:%M:%S")
+        pnl_str    = f"  P&L: [yellow]{trade.pnl:+.4f}[/yellow]" if trade.pnl is not None else ""
         log.write(
-            f"[{color}]{trade.side.value.upper()}[/{color}] {trade.pair} "
-            f"{trade.quantity} @ {trade.price:.2f}  "
-            f"[[cyan]{trade.strategy}[/cyan]]  [{trade.mode}]  {ts}{pnl_str}"
+            f"[{color}]{side_text}[/{color}]  {pair_text}  {qty_text} @{price_text}  "
+            f"[[cyan]{strat_text}[/cyan]]  {mode_text}  {ts}{pnl_str}"
         )
