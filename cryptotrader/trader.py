@@ -40,7 +40,10 @@ class Trader:
             tick: PriceTick = await self._price_queue.get()
 
             if self._tui_price_queue is not None:
-                await self._tui_price_queue.put(tick)
+                try:
+                    self._tui_price_queue.put_nowait(tick)
+                except asyncio.QueueFull:
+                    pass  # TUI is slow or not running — drop silently
 
             strategy = self._strategies.get(tick.pair)
             if strategy is None:
