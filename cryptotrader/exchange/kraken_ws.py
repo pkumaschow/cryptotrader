@@ -148,7 +148,10 @@ class KrakenWebSocket:
                 )
                 self._last_tick_time = asyncio.get_event_loop().time()
                 self._backoff_attempt = 0  # reset backoff only after a real tick arrives
-                self._price_queue.put_nowait(tick)
+                try:
+                    self._price_queue.put_nowait(tick)
+                except asyncio.QueueFull:
+                    logger.warning("Price queue full — dropping tick for %s", tick.pair)
             except (KeyError, TypeError, ValueError) as exc:
                 logger.debug("Failed to parse tick: %s — %s", item, exc)
 
