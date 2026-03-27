@@ -7,7 +7,10 @@ from __future__ import annotations
 import asyncio
 
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, Vertical
+from textual.binding import Binding
+from textual.containers import Horizontal
+from textual.reactive import reactive
+from textual.widgets import Footer, Label
 
 from cryptotrader.config import get_settings
 from cryptotrader.models import PriceTick, Trade
@@ -17,6 +20,8 @@ from cryptotrader.tui.trade_log_panel import TradeLogPanel
 
 
 class CryptoTraderApp(App):
+    BINDINGS = [Binding("t", "toggle_tz", "Toggle UTC/Local")]
+
     CSS = """
     Screen {
         layout: vertical;
@@ -24,7 +29,16 @@ class CryptoTraderApp(App):
     Horizontal {
         height: 1fr;
     }
+    #tz-indicator {
+        dock: bottom;
+        height: 1;
+        background: $panel;
+        color: $text-muted;
+        padding: 0 1;
+    }
     """
+
+    use_utc: reactive[bool] = reactive(False)
 
     def __init__(
         self,
@@ -42,6 +56,17 @@ class CryptoTraderApp(App):
             yield TradeLogPanel(id="trade-log-panel")
             if settings.mode.active == "test":
                 yield StatsPanel(id="stats-panel")
+        yield Label(self._tz_label(), id="tz-indicator")
+        yield Footer()
+
+    def _tz_label(self) -> str:
+        return "TZ: UTC" if self.use_utc else "TZ: Local"
+
+    def action_toggle_tz(self) -> None:
+        self.use_utc = not self.use_utc
+
+    def watch_use_utc(self) -> None:
+        self.query_one("#tz-indicator", Label).update(self._tz_label())
 
     def on_mount(self) -> None:
         self.run_worker(self._consume_prices(), exclusive=False)

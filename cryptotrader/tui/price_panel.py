@@ -1,8 +1,16 @@
+from datetime import datetime, timezone
+
 from textual.app import ComposeResult
 from textual.widget import Widget
 from textual.widgets import DataTable, Label
 
 from cryptotrader.models import PriceTick
+
+
+def _fmt_ts(ts: datetime, use_utc: bool) -> str:
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    return ts.strftime("%H:%M:%S") if use_utc else ts.astimezone().strftime("%H:%M:%S")
 
 
 class PricePanel(Widget):
@@ -26,7 +34,7 @@ class PricePanel(Widget):
 
     def update_tick(self, tick: PriceTick) -> None:
         table = self.query_one("#price-table", DataTable)
-        ts = tick.timestamp.strftime("%H:%M:%S")
+        ts = _fmt_ts(tick.timestamp, getattr(self.app, "use_utc", False))
         values = (tick.pair, f"{tick.bid:.2f}", f"{tick.ask:.2f}", f"{tick.last:.2f}", ts)
         if tick.pair in self._known_rows:
             for col_key, val in zip(self._col_keys, values):
