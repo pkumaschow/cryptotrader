@@ -13,7 +13,7 @@ import logging
 from datetime import datetime, timezone
 
 import websockets
-from websockets.exceptions import ConnectionClosed
+from websockets.exceptions import ConnectionClosed, InvalidStatus
 
 from cryptotrader.config import get_settings
 from cryptotrader.models import PriceTick
@@ -51,7 +51,12 @@ class KrakenWebSocket:
         while self._running:
             try:
                 logger.info("Connecting to Kraken WS (attempt %d)", attempt + 1)
-                async with websockets.connect(_WS_URL, ping_interval=20, ping_timeout=10) as ws:
+                async with websockets.connect(
+                    _WS_URL,
+                    ping_interval=20,
+                    ping_timeout=10,
+                    additional_headers={"User-Agent": "cryptotrader/0.1.0"},
+                ) as ws:
                     self._ws = ws
                     await ws.send(json.dumps({
                         "method": "subscribe",
@@ -68,6 +73,12 @@ class KrakenWebSocket:
                     self._ws = None
             except ConnectionClosed as exc:
                 logger.warning("WS connection closed: %s", exc)
+            except InvalidStatus as exc:
+                if exc.response.status_code == 429:
+                    logger.warning("Kraken rate limited (HTTP 429) — waiting 60s before retry")
+                    await asyncio.sleep(60)
+                else:
+                    logger.error("WS handshake rejected: %s", exc)
             except Exception:
                 logger.exception("WS error")
 
