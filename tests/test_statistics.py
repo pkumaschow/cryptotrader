@@ -32,8 +32,8 @@ def test_empty_db_returns_zeros(test_config_path, tmp_path):
 def test_winning_trade(test_config_path, tmp_path):
     db_path = str(tmp_path / "stats_win.db")
     database.init_db(db_path)
-    insert(db_path, "XBTUSD", Side.BUY, 50000)
-    insert(db_path, "XBTUSD", Side.SELL, 60000)
+    insert(db_path, "BTC/USD", Side.BUY, 50000)
+    insert(db_path, "BTC/USD", Side.SELL, 60000)
 
     with patch("cryptotrader.statistics.get_settings") as ms:
         s = get_settings(test_config_path)
@@ -49,8 +49,8 @@ def test_winning_trade(test_config_path, tmp_path):
 def test_losing_trade(test_config_path, tmp_path):
     db_path = str(tmp_path / "stats_loss.db")
     database.init_db(db_path)
-    insert(db_path, "XBTUSD", Side.BUY, 60000)
-    insert(db_path, "XBTUSD", Side.SELL, 50000)
+    insert(db_path, "BTC/USD", Side.BUY, 60000)
+    insert(db_path, "BTC/USD", Side.SELL, 50000)
 
     with patch("cryptotrader.statistics.get_settings") as ms:
         s = get_settings(test_config_path)
@@ -66,10 +66,10 @@ def test_losing_trade(test_config_path, tmp_path):
 def test_mixed_trades_win_rate(test_config_path, tmp_path):
     db_path = str(tmp_path / "stats_mixed.db")
     database.init_db(db_path)
-    insert(db_path, "XBTUSD", Side.BUY, 50000)
-    insert(db_path, "XBTUSD", Side.SELL, 60000)  # win
-    insert(db_path, "XBTUSD", Side.BUY, 60000)
-    insert(db_path, "XBTUSD", Side.SELL, 55000)  # loss
+    insert(db_path, "BTC/USD", Side.BUY, 50000)
+    insert(db_path, "BTC/USD", Side.SELL, 60000)  # win
+    insert(db_path, "BTC/USD", Side.BUY, 60000)
+    insert(db_path, "BTC/USD", Side.SELL, 55000)  # loss
 
     with patch("cryptotrader.statistics.get_settings") as ms:
         s = get_settings(test_config_path)

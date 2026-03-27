@@ -21,12 +21,12 @@ async def test_test_mode_records_trade(test_config_path, tmp_path):
         mock_settings.return_value = settings
 
         executor = TradeExecutor()
-        trade = await executor.execute(Signal.BUY, "XBTUSD", 49999.0)
+        trade = await executor.execute(Signal.BUY, "BTC/USD", 49999.0)
 
     assert trade is not None
     assert trade.side == Side.BUY
     assert trade.mode == "test"
-    assert trade.pair == "XBTUSD"
+    assert trade.pair == "BTC/USD"
     assert trade.id is not None
 
     trades = database.query_trades(settings.database.path, mode="test")
@@ -47,7 +47,7 @@ async def test_production_mode_never_fires_in_test(test_config_path, tmp_path):
         executor = TradeExecutor()
         executor.set_rest_client(mock_rest)
 
-        await executor.execute(Signal.SELL, "XBTUSD", 61000.0)
+        await executor.execute(Signal.SELL, "BTC/USD", 61000.0)
 
     mock_rest.place_order.assert_not_called()
 
@@ -62,9 +62,9 @@ async def test_tui_queue_receives_trade(test_config_path, tmp_path):
         mock_settings.return_value = settings
 
         executor = TradeExecutor(tui_queue=tui_queue)
-        await executor.execute(Signal.BUY, "ETHUSD", 1999.0)
+        await executor.execute(Signal.BUY, "ETH/USD", 1999.0)
 
     assert not tui_queue.empty()
     trade = tui_queue.get_nowait()
     assert isinstance(trade, Trade)
-    assert trade.pair == "ETHUSD"
+    assert trade.pair == "ETH/USD"

@@ -12,13 +12,13 @@ stale_threshold = 30
 # Stats panel refresh interval (seconds)
 stats_refresh_interval = 5
 
-[currencies.XBTUSD]
+[currencies."BTC/USD"]
 strategy = "threshold"
 buy_trigger = 55000.00
 sell_trigger = 65000.00
 quantity = 0.001
 
-[currencies.ETHUSD]
+[currencies."ETH/USD"]
 strategy = "threshold"
 buy_trigger = 2800.00
 sell_trigger = 3400.00

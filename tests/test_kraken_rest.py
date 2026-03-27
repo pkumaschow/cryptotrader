@@ -12,7 +12,7 @@ async def test_place_order_returns_txid():
             "https://api.kraken.com/0/private/AddOrder",
             payload={"error": [], "result": {"txid": ["TXID-1234"]}},
         )
-        txid = await client.place_order("XBTUSD", "buy", 0.001)
+        txid = await client.place_order("BTC/USD", "buy", 0.001)
     assert txid == "TXID-1234"
     await client.close()
 
@@ -26,5 +26,5 @@ async def test_place_order_raises_on_kraken_error():
             payload={"error": ["EGeneral:Internal error"], "result": {}},
         )
         with pytest.raises(RuntimeError, match="Kraken API error"):
-            await client.place_order("XBTUSD", "buy", 0.001)
+            await client.place_order("BTC/USD", "buy", 0.001)
     await client.close()

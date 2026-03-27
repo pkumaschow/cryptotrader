@@ -85,8 +85,16 @@ class KrakenWebSocket:
         except json.JSONDecodeError:
             return
 
+        # Log any error or status messages from Kraken
+        channel = msg.get("channel")
+        if channel not in ("ticker", "heartbeat"):
+            if msg.get("success") is False or "error" in msg:
+                logger.error("Kraken WS error: %s", msg)
+            else:
+                logger.debug("Kraken WS message: %s", msg)
+
         # Kraken WS v2 ticker messages have type=="update" and channel=="ticker"
-        if msg.get("channel") != "ticker" or msg.get("type") not in ("snapshot", "update"):
+        if channel != "ticker" or msg.get("type") not in ("snapshot", "update"):
             return
 
         for item in msg.get("data", []):

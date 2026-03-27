@@ -35,13 +35,13 @@ active = "test"
 [database]
 path = "test_cryptotrader.db"
 
-[currencies.XBTUSD]
+[currencies."BTC/USD"]
 strategy = "threshold"
 buy_trigger = 50000.0
 sell_trigger = 60000.0
 quantity = 0.001
 
-[currencies.ETHUSD]
+[currencies."ETH/USD"]
 strategy = "threshold"
 buy_trigger = 2000.0
 sell_trigger = 3000.0
