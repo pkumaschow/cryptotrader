@@ -58,7 +58,7 @@ async def _run(tui: bool) -> None:
         from cryptotrader.tui.app import CryptoTraderApp
         app = CryptoTraderApp(tui_price_queue, trade_queue)
         try:
-            await app.run_async()
+            await app.run_async(mouse=False)
         finally:
             await ws.stop()
             ws_task.cancel()
