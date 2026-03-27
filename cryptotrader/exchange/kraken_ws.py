@@ -30,6 +30,7 @@ class KrakenWebSocket:
         self._last_tick_time: float = 0.0
         self._running = False
         self._ws: websockets.WebSocketClientProtocol | None = None
+        self._backoff_attempt: int = 0
 
     async def run(self) -> None:
         self._running = True
@@ -47,12 +48,12 @@ class KrakenWebSocket:
         self._running = False
 
     async def _connect_loop(self) -> None:
-        attempt = 0
         while self._running:
             try:
-                logger.info("Connecting to Kraken WS (attempt %d)", attempt + 1)
+                logger.info("Connecting to Kraken WS (attempt %d)", self._backoff_attempt + 1)
                 async with websockets.connect(
                     _WS_URL,
+                    open_timeout=15,
                     ping_interval=20,
                     ping_timeout=10,
                     additional_headers={"User-Agent": "cryptotrader/0.1.0"},
@@ -84,10 +85,10 @@ class KrakenWebSocket:
 
             if not self._running:
                 break
-            wait = min(2 ** attempt, 60)
+            wait = min(2 ** self._backoff_attempt, 60)
             logger.info("Reconnecting in %ds...", wait)
             await asyncio.sleep(wait)
-            attempt += 1
+            self._backoff_attempt += 1
 
     def _dispatch(self, raw: str) -> None:
         try:
@@ -117,7 +118,7 @@ class KrakenWebSocket:
                     timestamp=datetime.now(timezone.utc),
                 )
                 self._last_tick_time = asyncio.get_event_loop().time()
-                attempt = 0  # reset backoff only after a real tick arrives
+                self._backoff_attempt = 0  # reset backoff only after a real tick arrives
                 self._price_queue.put_nowait(tick)
             except (KeyError, TypeError, ValueError) as exc:
                 logger.debug("Failed to parse tick: %s — %s", item, exc)
