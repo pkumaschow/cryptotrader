@@ -43,6 +43,8 @@
       ansible.builtin.copy:
         dest: "{{ deploy_path }}/.env"
         content: |
+          # DO NOT enter real API keys here — this file is a placeholder only.
+          # Edit /opt/cryptotrader/.env directly on the Pi after deployment.
           KRAKEN_API_KEY=
           KRAKEN_API_SECRET=
         force: false   # never overwrite an existing .env
