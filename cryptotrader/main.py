@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import os
 import sys
 
 from cryptotrader.config import get_settings
@@ -55,15 +56,17 @@ async def _run(tui: bool) -> None:
     trader_task = asyncio.create_task(trader.run())
 
     if tui:
+        # Force a conservative terminal type so Textual skips advanced capability
+        # probing (Sixel, focus-reporting, etc.) that leaks escape codes over SSH.
+        os.environ["TERM"] = "xterm-256color"
         # Disable all terminal mouse-tracking modes before Textual initialises.
-        # Over SSH, mouse events can leak as literal text during the brief window
-        # between process start and Textual entering raw mode.
         sys.stdout.write(
             "\x1b[?1000l"  # disable X10 mouse
             "\x1b[?1002l"  # disable button-event mouse
             "\x1b[?1003l"  # disable all-motion mouse
             "\x1b[?1006l"  # disable SGR extended mouse
             "\x1b[?1015l"  # disable URXVT extended mouse
+            "\x1b[?1004l"  # disable focus reporting
         )
         sys.stdout.flush()
         from cryptotrader.tui.app import CryptoTraderApp
