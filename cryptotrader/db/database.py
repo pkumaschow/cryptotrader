@@ -1,58 +1,67 @@
 from __future__ import annotations
 
-import sqlite3
-from contextlib import contextmanager
-from datetime import datetime
-from typing import Generator, Optional
+import threading
+from datetime import datetime, timezone
+from typing import Optional
+
+import duckdb
 
 from cryptotrader.models import Side, Trade
 
 
+def _to_utc_naive(dt: datetime) -> datetime:
+    """Strip timezone from a UTC-aware datetime for DuckDB TIMESTAMP storage."""
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
+
+
+def _from_naive(dt: datetime) -> datetime:
+    """Re-attach UTC timezone when reading a naive datetime back from DuckDB."""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+_lock = threading.Lock()
+_conn: Optional[duckdb.DuckDBPyConnection] = None
+
+
 def init_db(path: str) -> None:
-    with sqlite3.connect(path) as conn:
-        conn.execute("""
+    global _conn
+    with _lock:
+        if _conn is not None:
+            _conn.close()
+        _conn = duckdb.connect(path)
+        _conn.execute("CREATE SEQUENCE IF NOT EXISTS trades_id_seq START 1")
+        _conn.execute("""
             CREATE TABLE IF NOT EXISTS trades (
-                id        INTEGER PRIMARY KEY AUTOINCREMENT,
-                pair      TEXT    NOT NULL,
-                side      TEXT    NOT NULL,
-                price     REAL    NOT NULL,
-                quantity  REAL    NOT NULL,
-                timestamp TEXT    NOT NULL,
-                mode      TEXT    NOT NULL,
-                strategy  TEXT    NOT NULL DEFAULT 'unknown',
-                pnl       REAL,
-                txid      TEXT
+                id        BIGINT      PRIMARY KEY DEFAULT nextval('trades_id_seq'),
+                pair      VARCHAR     NOT NULL,
+                side      VARCHAR     NOT NULL,
+                price     DOUBLE      NOT NULL,
+                quantity  DOUBLE      NOT NULL,
+                timestamp TIMESTAMP   NOT NULL,
+                mode      VARCHAR     NOT NULL,
+                strategy  VARCHAR     NOT NULL DEFAULT 'unknown',
+                pnl       DOUBLE,
+                txid      VARCHAR
             )
         """)
-        try:
-            conn.execute("ALTER TABLE trades ADD COLUMN strategy TEXT NOT NULL DEFAULT 'unknown'")
-        except sqlite3.OperationalError:
-            pass
-        conn.commit()
-
-
-@contextmanager
-def _connect(path: str) -> Generator[sqlite3.Connection, None, None]:
-    conn = sqlite3.connect(path)
-    conn.row_factory = sqlite3.Row
-    try:
-        yield conn
-        conn.commit()
-    finally:
-        conn.close()
 
 
 def insert_trade(path: str, trade: Trade) -> int:
-    with _connect(path) as conn:
-        cursor = conn.execute(
+    assert _conn is not None, "Database not initialised — call init_db first"
+    with _lock:
+        row = _conn.execute(
             """
             INSERT INTO trades (pair, side, price, quantity, timestamp, mode, strategy, pnl, txid)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING id
             """,
-            (trade.pair, trade.side.value, trade.price, trade.quantity,
-             trade.timestamp.isoformat(), trade.mode, trade.strategy, trade.pnl, trade.txid),
-        )
-        return cursor.lastrowid  # type: ignore[return-value]
+            [trade.pair, trade.side.value, trade.price, trade.quantity,
+             _to_utc_naive(trade.timestamp), trade.mode, trade.strategy, trade.pnl, trade.txid],
+        ).fetchone()
+    return row[0]  # type: ignore[index]
 
 
 def query_trades(
@@ -62,6 +71,7 @@ def query_trades(
     strategy: Optional[str] = None,
     since: Optional[datetime] = None,
 ) -> list[Trade]:
+    assert _conn is not None, "Database not initialised — call init_db first"
     conditions: list[str] = []
     params: list[object] = []
     if pair:
@@ -75,19 +85,21 @@ def query_trades(
         params.append(strategy)
     if since:
         conditions.append("timestamp >= ?")
-        params.append(since.isoformat())
+        params.append(since)
     where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-    sql = f"SELECT * FROM trades {where} ORDER BY timestamp ASC"
-    with _connect(path) as conn:
-        rows = conn.execute(sql, params).fetchall()
-    trades: list[Trade] = []
-    for row in rows:
-        trades.append(Trade(
-            id=row["id"], pair=row["pair"], side=Side(row["side"]),
-            price=row["price"], quantity=row["quantity"],
-            timestamp=datetime.fromisoformat(row["timestamp"]),
-            mode=row["mode"],
-            strategy=row["strategy"] if "strategy" in row.keys() else "unknown",
-            pnl=row["pnl"], txid=row["txid"],
-        ))
-    return trades
+    sql = (
+        "SELECT id, pair, side, price, quantity, timestamp, mode, strategy, pnl, txid "
+        f"FROM trades {where} ORDER BY timestamp ASC"
+    )
+    with _lock:
+        rows = _conn.execute(sql, params).fetchall()
+    return [
+        Trade(
+            id=row[0], pair=row[1], side=Side(row[2]),
+            price=row[3], quantity=row[4],
+            timestamp=_from_naive(row[5] if isinstance(row[5], datetime) else datetime.fromisoformat(str(row[5]))),
+            mode=row[6], strategy=row[7] or "unknown",
+            pnl=row[8], txid=row[9],
+        )
+        for row in rows
+    ]

@@ -4,7 +4,7 @@
 active = "test"
 
 [database]
-path = "cryptotrader.db"
+path = "cryptotrader.duckdb"
 
 [websocket]
 stale_threshold = 30
