@@ -67,6 +67,7 @@ class CryptoTraderApp(App):
 
     def watch_use_utc(self) -> None:
         self.query_one("#tz-indicator", Label).update(self._tz_label())
+        self.query_one("#trade-log-panel", TradeLogPanel).re_render()
 
     def on_mount(self) -> None:
         self.run_worker(self._consume_prices(), exclusive=False)
