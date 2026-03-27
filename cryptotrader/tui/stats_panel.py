@@ -1,3 +1,5 @@
+import asyncio
+
 from textual.app import ComposeResult
 from textual.widget import Widget
 from textual.widgets import Label, Static
@@ -21,18 +23,22 @@ class StatsPanel(Widget):
 
     def on_mount(self) -> None:
         self.set_interval(5, self.refresh_stats)
-        self.refresh_stats()
+        self.run_worker(self.refresh_stats(), exclusive=True)
 
-    def refresh_stats(self) -> None:
-        lines: list[str] = []
-        for sname in _REGISTRY:
-            r = statistics.compute(mode="test", strategy=sname)
-            if r.total_trades == 0:
-                lines.append(f"[cyan]{sname:14}[/cyan]  no trades yet")
-            else:
-                sign = "+" if r.total_pnl >= 0 else ""
-                lines.append(
-                    f"[cyan]{sname:14}[/cyan]  {r.total_trades:3} trades  "
-                    f"{r.win_rate:5.1f}%  P&L {sign}${r.total_pnl:.4f}"
-                )
+    async def refresh_stats(self) -> None:
+        def _query() -> list[str]:
+            lines: list[str] = []
+            for sname in _REGISTRY:
+                r = statistics.compute(mode="test", strategy=sname)
+                if r.total_trades == 0:
+                    lines.append(f"[cyan]{sname:14}[/cyan]  no trades yet")
+                else:
+                    sign = "+" if r.total_pnl >= 0 else ""
+                    lines.append(
+                        f"[cyan]{sname:14}[/cyan]  {r.total_trades:3} trades  "
+                        f"{r.win_rate:5.1f}%  P&L {sign}${r.total_pnl:.4f}"
+                    )
+            return lines
+
+        lines = await asyncio.to_thread(_query)
         self.query_one("#stats-body", Static).update("\n".join(lines))

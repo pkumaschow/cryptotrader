@@ -15,7 +15,7 @@ class TradeLogPanel(Widget):
 
     def compose(self) -> ComposeResult:
         yield Label("[bold]Trade Log[/bold]")
-        yield RichLog(id="trade-log", wrap=True, markup=True)
+        yield RichLog(id="trade-log", wrap=True, markup=True, max_lines=500)
 
     def append_trade(self, trade: Trade) -> None:
         log = self.query_one("#trade-log", RichLog)
