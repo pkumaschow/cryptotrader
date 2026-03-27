@@ -60,7 +60,6 @@ class KrakenWebSocket:
                             "symbol": self._pairs,
                         },
                     }))
-                    attempt = 0  # reset on successful connect
                     self._last_tick_time = asyncio.get_event_loop().time()
                     async for raw in ws:
                         if not self._running:
@@ -69,8 +68,8 @@ class KrakenWebSocket:
                     self._ws = None
             except ConnectionClosed as exc:
                 logger.warning("WS connection closed: %s", exc)
-            except Exception as exc:
-                logger.error("WS error: %s", exc)
+            except Exception:
+                logger.exception("WS error")
 
             if not self._running:
                 break
@@ -107,6 +106,7 @@ class KrakenWebSocket:
                     timestamp=datetime.now(timezone.utc),
                 )
                 self._last_tick_time = asyncio.get_event_loop().time()
+                attempt = 0  # reset backoff only after a real tick arrives
                 self._price_queue.put_nowait(tick)
             except (KeyError, TypeError, ValueError) as exc:
                 logger.debug("Failed to parse tick: %s — %s", item, exc)
