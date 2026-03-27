@@ -54,6 +54,8 @@
         name: pip
         state: latest
         virtualenv: "{{ deploy_path }}/venv"
+      register: pip_upgrade
+      changed_when: "'Successfully installed' in pip_upgrade.stdout"
 
     - name: Install project dependencies
       ansible.builtin.pip:
