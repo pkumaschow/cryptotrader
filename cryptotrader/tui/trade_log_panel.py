@@ -4,13 +4,17 @@ from textual.app import ComposeResult
 from textual.widget import Widget
 from textual.widgets import Label, RichLog
 
+from cryptotrader.config import get_settings
+from cryptotrader.db import database
 from cryptotrader.models import Trade
+
+_HISTORY_LIMIT = 100
 
 
 def _fmt_ts(ts: datetime, use_utc: bool) -> str:
     if ts.tzinfo is None:
         ts = ts.replace(tzinfo=timezone.utc)
-    return ts.strftime("%H:%M:%S") if use_utc else ts.astimezone().strftime("%H:%M:%S")
+    return ts.strftime("%Y-%m-%d %H:%M:%S") if use_utc else ts.astimezone().strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _render_line(trade: Trade, use_utc: bool) -> str:
@@ -44,6 +48,24 @@ class TradeLogPanel(Widget):
 
     def on_mount(self) -> None:
         self._trades: list[Trade] = []
+        self.query_one("#trade-log", RichLog).can_focus = True
+        self._load_history()
+
+    def _load_history(self) -> None:
+        try:
+            settings = get_settings()
+            history = database.query_trades(settings.database.path, read_only=True)
+        except Exception:
+            return
+        recent = history[-_HISTORY_LIMIT:]
+        if not recent:
+            return
+        log = self.query_one("#trade-log", RichLog)
+        use_utc = getattr(self.app, "use_utc", False)
+        for trade in recent:
+            self._trades.append(trade)
+            log.write(_render_line(trade, use_utc))
+        log.write(f"[dim]── {len(recent)} historical · live below ──[/dim]")
 
     def append_trade(self, trade: Trade) -> None:
         self._trades.append(trade)

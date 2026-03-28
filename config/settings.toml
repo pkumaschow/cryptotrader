@@ -15,7 +15,7 @@ strategy = "ema"
 quantity = 0.001
 
 [currencies."BTC/USD".threshold]
-buy_trigger = 70000.00
+buy_trigger = 65000.00
 sell_trigger = 68000.00
 
 [currencies."ETH/USD"]
@@ -23,5 +23,5 @@ strategy = "ema"
 quantity = 0.05
 
 [currencies."ETH/USD".threshold]
-buy_trigger = 2100.00
+buy_trigger = 1900.00
 sell_trigger = 2050.00

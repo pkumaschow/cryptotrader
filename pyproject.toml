@@ -27,6 +27,7 @@ dev = [
 [project.scripts]
 cryptotrader = "cryptotrader.main:main"
 cryptotrader-stats = "scripts.stats:main"
+cryptotrader-report = "scripts.report:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

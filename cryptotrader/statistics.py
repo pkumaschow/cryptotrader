@@ -1,4 +1,5 @@
 from __future__ import annotations
+from datetime import datetime
 from typing import Optional
 from cryptotrader.config import get_settings
 from cryptotrader.db import database
@@ -6,9 +7,14 @@ from cryptotrader.models import Side, StatsResult, Trade
 
 
 def compute(pair: Optional[str] = None, mode: str = "test",
-            strategy: Optional[str] = None) -> StatsResult:
+            strategy: Optional[str] = None,
+            since: Optional[datetime] = None,
+            until: Optional[datetime] = None) -> StatsResult:
     settings = get_settings()
-    trades = database.query_trades(settings.database.path, pair=pair, mode=mode, strategy=strategy)
+    trades = database.query_trades(
+        settings.database.path, pair=pair, mode=mode,
+        strategy=strategy, since=since, until=until,
+    )
     if not trades:
         return StatsResult(total_trades=0, win_rate=0.0, total_pnl=0.0,
                            avg_gain=0.0, avg_loss=0.0, pair=pair, strategy=strategy)

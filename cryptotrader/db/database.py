@@ -62,6 +62,7 @@ def query_trades(
     mode: Optional[str] = None,
     strategy: Optional[str] = None,
     since: Optional[datetime] = None,
+    until: Optional[datetime] = None,
     read_only: bool = False,
 ) -> list[Trade]:
     conditions: list[str] = []
@@ -78,6 +79,9 @@ def query_trades(
     if since:
         conditions.append("timestamp >= ?")
         params.append(since.isoformat())
+    if until:
+        conditions.append("timestamp <= ?")
+        params.append(until.isoformat())
     where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
     sql = f"SELECT * FROM trades {where} ORDER BY timestamp ASC"
     with _connect(path, read_only=read_only) as conn:

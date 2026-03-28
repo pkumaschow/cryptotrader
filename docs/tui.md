@@ -79,6 +79,7 @@ Stats are read from the SQLite database in a background thread so the UI never b
 
 | Key | Action |
 |-----|--------|
+| `tab` | Cycle focus between panels (use arrow / Page Up / Page Down to scroll focused panel) |
 | `t` | Toggle timestamps between local system timezone and UTC |
 | `q` | Quit |
 | `ctrl-c` | Quit |
