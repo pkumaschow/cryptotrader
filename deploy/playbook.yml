@@ -63,6 +63,12 @@
         extra_args: "-e"
         virtualenv: "{{ deploy_path }}/venv"
 
+    - name: Install litecli
+      ansible.builtin.pip:
+        name: litecli
+        state: latest
+        virtualenv: "{{ deploy_path }}/venv"
+
     - name: Install systemd service file
       ansible.builtin.copy:
         src: "{{ deploy_path }}/deploy/{{ service_name }}.service"
@@ -118,3 +124,4 @@
           - "Logs:    journalctl -fu {{ service_name }}"
           - "Stats:   ssh {{ ansible_user }}@{{ ansible_host }} '{{ deploy_path }}/venv/bin/cryptotrader-stats'"
           - "TUI:     ssh {{ ansible_user }}@{{ ansible_host }} 'cd {{ deploy_path }} && venv/bin/python -m cryptotrader.main --tui'"
+          - "DB:      ssh {{ ansible_user }}@{{ ansible_host }} '{{ deploy_path }}/venv/bin/litecli {{ deploy_path }}/cryptotrader.db --warn'"
