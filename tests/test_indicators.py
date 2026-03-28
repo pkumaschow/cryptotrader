@@ -8,10 +8,10 @@ from cryptotrader.strategy._indicators import atr, bollinger_bands, ema
 
 def make_candle(close: float, high: float = None, low: float = None) -> Candle:
     h = high if high is not None else close
-    l = low if low is not None else close
+    lo = low if low is not None else close
     return Candle(
         pair="BTC/USD", timeframe=60,
-        open=close, high=h, low=l, close=close,
+        open=close, high=h, low=lo, close=close,
         tick_count=1, timestamp=datetime.now(timezone.utc),
     )
 

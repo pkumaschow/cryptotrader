@@ -1,7 +1,5 @@
 from datetime import datetime, timezone
 
-import pytest
-
 from cryptotrader.config import CurrencyConfig, TrendPullbackParams
 from cryptotrader.models import PriceTick, Signal
 from cryptotrader.strategy.trend_pullback import TrendPullbackStrategy

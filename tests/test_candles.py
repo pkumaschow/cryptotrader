@@ -1,7 +1,5 @@
 from datetime import datetime, timezone
 
-import pytest
-
 from cryptotrader.candles import CandleBuilder
 from cryptotrader.models import PriceTick
 
