@@ -71,9 +71,9 @@ async def test_trader_forwards_tick_to_tui_price_queue(test_config_path, tmp_pat
         ms.return_value = s
         me.return_value = s
         trader = Trader(price_queue=asyncio.Queue(), tui_price_queue=tui_price)
+        tick = make_tick()
+        await _run_one_tick(trader, tick)
 
-    tick = make_tick()
-    await _run_one_tick(trader, tick)
     assert not tui_price.empty()
     assert tui_price.get_nowait() is tick
 
@@ -90,11 +90,11 @@ async def test_trader_drops_tick_silently_when_tui_queue_full(test_config_path, 
         ms.return_value = s
         me.return_value = s
         trader = Trader(price_queue=asyncio.Queue(), tui_price_queue=tui_price)
+        # Fill the TUI queue to capacity
+        await tui_price.put(make_tick(price=1.0))
+        # This tick should be dropped silently (QueueFull)
+        await _run_one_tick(trader, make_tick(price=2.0))
 
-    # Fill the TUI queue to capacity
-    await tui_price.put(make_tick(price=1.0))
-    # This tick should be dropped silently (QueueFull)
-    await _run_one_tick(trader, make_tick(price=2.0))
     assert tui_price.qsize() == 1  # still just the original
 
 
