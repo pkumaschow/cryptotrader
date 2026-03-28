@@ -1,6 +1,3 @@
-import os
-import tempfile
-
 import pytest
 
 from cryptotrader.config import get_settings, get_secrets

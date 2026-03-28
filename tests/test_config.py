@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from cryptotrader.config import get_settings, Settings, ModeConfig
+from cryptotrader.config import get_settings, ModeConfig
 
 
 def test_load_settings(test_config_path):
