@@ -79,3 +79,28 @@ def test_mixed_trades_win_rate(test_config_path, tmp_path):
 
     assert result.total_trades == 2
     assert result.win_rate == pytest.approx(50.0)
+
+
+def test_all_strategies_returns_sorted_unique(test_config_path, tmp_path):
+    db_path = str(tmp_path / "stats_strats.db")
+    database.init_db(db_path)
+    database.insert_trade(db_path, Trade(
+        pair="BTC/USD", side=Side.BUY, price=50000, quantity=0.001,
+        mode="test", strategy="ema", timestamp=datetime.now(timezone.utc)
+    ))
+    database.insert_trade(db_path, Trade(
+        pair="BTC/USD", side=Side.BUY, price=50000, quantity=0.001,
+        mode="test", strategy="bollinger", timestamp=datetime.now(timezone.utc)
+    ))
+    database.insert_trade(db_path, Trade(
+        pair="BTC/USD", side=Side.BUY, price=50000, quantity=0.001,
+        mode="test", strategy="ema", timestamp=datetime.now(timezone.utc)
+    ))
+
+    with patch("cryptotrader.statistics.get_settings") as ms:
+        s = get_settings(test_config_path)
+        s.database.path = db_path
+        ms.return_value = s
+        result = statistics.all_strategies(mode="test")
+
+    assert result == ["bollinger", "ema"]  # sorted, deduplicated
