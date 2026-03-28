@@ -33,6 +33,10 @@ class CandleBuilder:
         aligned = (total_minutes // self._tf) * self._tf
         return ts.replace(hour=aligned // 60, minute=aligned % 60, second=0, microsecond=0)
 
+    def load(self, candles: list[Candle]) -> None:
+        """Pre-populate completed candle history (called on service restart)."""
+        self._completed = list(candles)
+
     @property
     def candles(self) -> list[Candle]:
         return self._completed

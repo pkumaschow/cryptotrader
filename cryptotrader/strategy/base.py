@@ -10,3 +10,6 @@ class Strategy(ABC):
 
     @abstractmethod
     def evaluate(self, tick: PriceTick) -> Optional[Signal]: ...
+
+    def restore(self, db_path: str, pair: str) -> None:
+        """Reload candle history and position state from DB. No-op by default."""

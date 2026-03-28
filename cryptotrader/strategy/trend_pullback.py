@@ -2,7 +2,8 @@ from __future__ import annotations
 from typing import Optional
 from cryptotrader.candles import CandleBuilder
 from cryptotrader.config import CurrencyConfig
-from cryptotrader.models import PriceTick, Signal
+from cryptotrader.db import database
+from cryptotrader.models import PriceTick, Side, Signal
 from cryptotrader.strategy._indicators import ema
 from cryptotrader.strategy.base import Strategy
 
@@ -19,10 +20,27 @@ class TrendPullbackStrategy(Strategy):
         self._candles_1h = CandleBuilder(timeframe_minutes=60)
         self._candles_4h = CandleBuilder(timeframe_minutes=240)
         self._in_position = False
+        self._db_path: Optional[str] = None
+
+    def restore(self, db_path: str, pair: str) -> None:
+        self._db_path = db_path
+        candles_1h = database.query_candles(db_path, pair, 60, self._pullback_period + 10)
+        if candles_1h:
+            self._candles_1h.load(candles_1h)
+        candles_4h = database.query_candles(db_path, pair, 240, self._trend_period + 10)
+        if candles_4h:
+            self._candles_4h.load(candles_4h)
+        trades = database.query_trades(db_path, pair=pair, strategy=self.name)
+        if trades and trades[-1].side == Side.BUY:
+            self._in_position = True
 
     def evaluate(self, tick: PriceTick) -> Optional[Signal]:
         completed_1h = self._candles_1h.add_tick(tick)
-        self._candles_4h.add_tick(tick)
+        completed_4h = self._candles_4h.add_tick(tick)
+        if completed_1h is not None and self._db_path is not None:
+            database.insert_candle(self._db_path, completed_1h)
+        if completed_4h is not None and self._db_path is not None:
+            database.insert_candle(self._db_path, completed_4h)
         if completed_1h is None:
             return None
         candles_4h = self._candles_4h.candles

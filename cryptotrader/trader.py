@@ -25,6 +25,8 @@ class Trader:
                 self._strategies[pair] = [cls(cfg) for cls in registry.ALL_STRATEGIES]
             else:
                 self._strategies[pair] = [registry.get(cfg.strategy)(cfg)]
+            for strategy in self._strategies[pair]:
+                strategy.restore(settings.database.path, pair)
         strategy_names = {p: [s.name for s in ss] for p, ss in self._strategies.items()}
         logger.info("Trader initialized | pairs=%s | strategies=%s",
                     list(self._strategies), strategy_names)

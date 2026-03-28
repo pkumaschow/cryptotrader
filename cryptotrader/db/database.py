@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import Generator, Optional
 
-from cryptotrader.models import Side, Trade
+from cryptotrader.models import Candle, Side, Trade
 
 
 def init_db(path: str, read_only: bool = False) -> None:
@@ -13,6 +13,20 @@ def init_db(path: str, read_only: bool = False) -> None:
         return  # WAL mode allows readers without any setup
     with sqlite3.connect(path) as conn:
         conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS candles (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                pair       TEXT    NOT NULL,
+                timeframe  INTEGER NOT NULL,
+                open       REAL    NOT NULL,
+                high       REAL    NOT NULL,
+                low        REAL    NOT NULL,
+                close      REAL    NOT NULL,
+                tick_count INTEGER NOT NULL,
+                timestamp  TEXT    NOT NULL,
+                UNIQUE(pair, timeframe, timestamp)
+            )
+        """)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS trades (
                 id        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,6 +68,35 @@ def insert_trade(path: str, trade: Trade) -> int:
              trade.timestamp.isoformat(), trade.mode, trade.strategy, trade.pnl, trade.txid),
         )
         return cursor.lastrowid  # type: ignore[return-value]
+
+
+def insert_candle(path: str, candle: Candle) -> None:
+    with _connect(path) as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO candles "
+            "(pair, timeframe, open, high, low, close, tick_count, timestamp) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (candle.pair, candle.timeframe, candle.open, candle.high, candle.low,
+             candle.close, candle.tick_count, candle.timestamp.isoformat()),
+        )
+
+
+def query_candles(path: str, pair: str, timeframe: int, limit: int) -> list[Candle]:
+    with _connect(path) as conn:
+        rows = conn.execute(
+            "SELECT * FROM candles WHERE pair = ? AND timeframe = ? "
+            "ORDER BY timestamp DESC LIMIT ?",
+            (pair, timeframe, limit),
+        ).fetchall()
+    return [
+        Candle(
+            pair=row["pair"], timeframe=row["timeframe"],
+            open=row["open"], high=row["high"], low=row["low"], close=row["close"],
+            tick_count=row["tick_count"],
+            timestamp=datetime.fromisoformat(row["timestamp"]),
+        )
+        for row in reversed(rows)
+    ]
 
 
 def query_trades(
