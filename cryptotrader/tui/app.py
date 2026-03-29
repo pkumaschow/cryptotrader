@@ -5,6 +5,8 @@ Runs alongside the trading engine by sharing asyncio.Queue instances.
 from __future__ import annotations
 
 import asyncio
+import os
+from datetime import datetime
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -36,12 +38,23 @@ class CryptoTraderApp(App):
     #bottom-row {
         height: 1fr;
     }
-    #tz-indicator {
+    #status-bar {
         dock: bottom;
         height: 1;
         background: $panel;
+    }
+    #tz-indicator {
+        width: 1fr;
         color: $text-muted;
         padding: 0 1;
+    }
+    #build-indicator {
+        width: auto;
+        color: $text-muted;
+        padding: 0 2;
+    }
+    #status-right {
+        width: 1fr;
     }
     """
 
@@ -65,8 +78,18 @@ class CryptoTraderApp(App):
             yield TradeLogPanel(id="trade-log-panel")
             if settings.mode.active == "test":
                 yield StatsPanel(id="stats-panel")
-        yield Label(self._tz_label(), id="tz-indicator")
+        with Horizontal(id="status-bar"):
+            yield Label(self._tz_label(), id="tz-indicator")
+            yield Label(self._build_label(), id="build-indicator")
+            yield Label("", id="status-right")
         yield Footer()
+
+    @staticmethod
+    def _build_label() -> str:
+        import cryptotrader
+        ts = os.path.getmtime(cryptotrader.__file__)
+        dt = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M")
+        return f"Built: {dt}"
 
     def _tz_label(self) -> str:
         return "TZ: UTC" if self.use_utc else "TZ: Local"
