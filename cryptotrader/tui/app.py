@@ -17,6 +17,7 @@ from cryptotrader.models import PriceTick, Trade
 from cryptotrader.tui.price_panel import PricePanel
 from cryptotrader.tui.stats_panel import StatsPanel
 from cryptotrader.tui.trade_log_panel import TradeLogPanel
+from cryptotrader.tui.weekly_summary_panel import WeeklySummaryPanel
 
 
 class CryptoTraderApp(App):
@@ -29,7 +30,10 @@ class CryptoTraderApp(App):
     Screen {
         layout: vertical;
     }
-    Horizontal {
+    #top-row {
+        height: auto;
+    }
+    #bottom-row {
         height: 1fr;
     }
     #tz-indicator {
@@ -54,8 +58,10 @@ class CryptoTraderApp(App):
 
     def compose(self) -> ComposeResult:
         settings = get_settings()
-        yield PricePanel(id="price-panel")
-        with Horizontal():
+        with Horizontal(id="top-row"):
+            yield PricePanel(id="price-panel")
+            yield WeeklySummaryPanel(id="weekly-summary-panel")
+        with Horizontal(id="bottom-row"):
             yield TradeLogPanel(id="trade-log-panel")
             if settings.mode.active == "test":
                 yield StatsPanel(id="stats-panel")
