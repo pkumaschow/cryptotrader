@@ -26,7 +26,7 @@ class WeeklySummaryPanel(Widget):
 
     def on_mount(self) -> None:
         table = self.query_one("#weekly-table", DataTable)
-        table.add_columns("Pair", "Buys", "Sells")
+        _, self._col_buys, self._col_sells = table.add_columns("Pair", "Buys", "Sells")
         table.cursor_type = "none"
         self._known_rows: set[str] = set()
         self.set_interval(30, self.refresh_summary)
@@ -59,8 +59,8 @@ class WeeklySummaryPanel(Widget):
             buy_str = f"[green]{buys}[/green]"
             sell_str = f"[red]{sells}[/red]"
             if pair in self._known_rows:
-                table.update_cell(pair, "Buys", buy_str, update_width=False)
-                table.update_cell(pair, "Sells", sell_str, update_width=False)
+                table.update_cell(pair, self._col_buys, buy_str, update_width=False)
+                table.update_cell(pair, self._col_sells, sell_str, update_width=False)
             else:
                 label = f"[bold]{pair}[/bold]" if pair == "TOTAL" else pair
                 table.add_row(label, buy_str, sell_str, key=pair)
