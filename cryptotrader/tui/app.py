@@ -34,27 +34,25 @@ class CryptoTraderApp(App):
     }
     #top-row {
         height: auto;
+        min-height: 8;
+    }
+    #price-panel {
+        width: 1fr;
+    }
+    #weekly-summary-panel {
+        width: 1fr;
     }
     #bottom-row {
         height: 1fr;
     }
-    #status-bar {
-        dock: bottom;
-        height: 1;
-        background: $panel;
+    #weekly-summary-panel > DataTable {
+        height: auto;
     }
     #tz-indicator {
-        width: 1fr;
+        height: 1;
+        background: $panel;
         color: $text-muted;
         padding: 0 1;
-    }
-    #build-indicator {
-        width: auto;
-        color: $text-muted;
-        padding: 0 2;
-    }
-    #status-right {
-        width: 1fr;
     }
     """
 
@@ -78,10 +76,7 @@ class CryptoTraderApp(App):
             yield TradeLogPanel(id="trade-log-panel")
             if settings.mode.active == "test":
                 yield StatsPanel(id="stats-panel")
-        with Horizontal(id="status-bar"):
-            yield Label(self._tz_label(), id="tz-indicator")
-            yield Label(self._build_label(), id="build-indicator")
-            yield Label("", id="status-right")
+        yield Label(self._tz_label(), id="tz-indicator")
         yield Footer()
 
     @staticmethod
@@ -92,7 +87,8 @@ class CryptoTraderApp(App):
         return f"Built: {dt}"
 
     def _tz_label(self) -> str:
-        return "TZ: UTC" if self.use_utc else "TZ: Local"
+        tz = "TZ: UTC" if self.use_utc else "TZ: Local"
+        return f"{tz}  ·  {self._build_label()}"
 
     def action_toggle_tz(self) -> None:
         self.use_utc = not self.use_utc
