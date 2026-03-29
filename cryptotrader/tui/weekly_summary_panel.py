@@ -18,6 +18,9 @@ class WeeklySummaryPanel(Widget):
         padding: 0 1;
         min-width: 36;
     }
+    WeeklySummaryPanel > DataTable {
+        height: auto;
+    }
     """
 
     def compose(self) -> ComposeResult:
