@@ -16,6 +16,7 @@ from textual.widgets import Footer, Label
 
 from cryptotrader.config import get_settings
 from cryptotrader.models import PriceTick, Trade
+from cryptotrader.tui.balance_panel import BalancePanel
 from cryptotrader.tui.price_panel import PricePanel
 from cryptotrader.tui.stats_panel import StatsPanel
 from cryptotrader.tui.trade_log_panel import TradeLogPanel
@@ -72,6 +73,8 @@ class CryptoTraderApp(App):
         with Horizontal(id="top-row"):
             yield PricePanel(id="price-panel")
             yield WeeklySummaryPanel(id="weekly-summary-panel")
+            if settings.mode.active == "production":
+                yield BalancePanel(id="balance-panel")
         with Horizontal(id="bottom-row"):
             yield TradeLogPanel(id="trade-log-panel")
             if settings.mode.active == "test":
