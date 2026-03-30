@@ -6,10 +6,27 @@ Python-based algorithmic trading bot for Kraken, with a live Textual TUI and SQL
 
 ```bash
 python3 -m venv venv
-venv/bin/pip install -e .
-cp config/settings.toml config/settings.toml   # already present
+venv/bin/pip install -e ".[dev]"
 cp .env.example .env                            # add Kraken API keys for production
 ```
+
+### Pre-commit hooks
+
+Lint and tests run automatically before every commit:
+
+```bash
+pre-commit install
+```
+
+To run manually without committing:
+
+```bash
+pre-commit run --all-files
+```
+
+Hooks configured in `.pre-commit-config.yaml`:
+- **ruff** — lints changed Python files
+- **pytest** — runs the full test suite (`-x` stops on first failure)
 
 ## Configuration
 

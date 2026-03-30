@@ -3,10 +3,10 @@ repos:
     hooks:
       - id: ruff
         name: ruff lint
-        entry: ruff check
+        entry: ruff check cryptotrader/ tests/
         language: system
-        types: [python]
-        pass_filenames: true
+        pass_filenames: false
+        always_run: true
 
       - id: pytest
         name: pytest
