@@ -81,7 +81,7 @@ class CryptoTraderApp(App):
 
     def compose(self) -> ComposeResult:
         settings = get_settings()
-        self.sub_title = settings.mode.active
+        self.sub_title = f"{settings.mode.active}  ·  {datetime.now().strftime('%Y-%m-%d')}"
         yield Header()
         with Horizontal(id="top-row"):
             yield PricePanel(id="price-panel")
