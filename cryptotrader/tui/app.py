@@ -46,6 +46,12 @@ class CryptoTraderApp(App):
     #bottom-row {
         height: 1fr;
     }
+    #trade-log-panel {
+        width: 2fr;
+    }
+    #stats-panel {
+        width: 1fr;
+    }
     #weekly-summary-panel > DataTable {
         height: auto;
     }

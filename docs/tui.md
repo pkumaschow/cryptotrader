@@ -2,18 +2,11 @@
 
 ## Starting the TUI
 
-The TUI can be run in two ways:
-
-**As the primary process** (replaces the headless service — do not run both):
 ```bash
 python -m cryptotrader.main --tui
 ```
 
-**As a monitor alongside the running service** (read-only DB access):
-```bash
-python -m cryptotrader.main --tui
-```
-The TUI opens the database read-only when run alongside the service. Live price data comes from its own WebSocket connection to Kraken; stats are read from the shared SQLite database (WAL mode allows concurrent access).
+The TUI opens the database read-only when run alongside the service. Live price data comes from its own WebSocket connection to Kraken; stats and trade history are read from the shared SQLite database (WAL mode allows concurrent access).
 
 If running over SSH, use `tmux` or `screen` to keep the session alive:
 ```bash
@@ -26,41 +19,77 @@ python -m cryptotrader.main --tui
 
 ## Layout
 
+### Test mode
+
 ```
-┌─ Live Prices ──────────────────────────────────────────────────────┐
-│ Pair     Bid       Ask       Last      Updated                     │
-│ BTC/USD  84230.00  84231.00  84230.50  12:34:56                    │
-│ ETH/USD   2145.00   2145.50   2145.20  12:34:56                    │
-└────────────────────────────────────────────────────────────────────┘
-┌─ Trade Log ──────────────────────────────┐ ┌─ Test Statistics ────┐
-│ BUY   BTC/USD  0.00100 @  84230.00       │ │ threshold       ...  │
-│   [ema           ]  test  12:34:56       │ │ ema             ...  │
-│ SELL  ETH/USD  0.05000 @   2145.00       │ │ bollinger       ...  │
-│   [trend_pullback]  test  12:34:57       │ │ trend_pullback  ...  │
-└──────────────────────────────────────────┘ └──────────────────────┘
-TZ: Local
- t  Toggle UTC/Local
+┌─ Live Prices ──────────────────┐ ┌─ Past 7 Days ──────────────────┐
+│ Pair     Bid      Ask    Last  │ │ Pair     Buys  Sells            │
+│ BTC/USD  84230    84231  84230 │ │ BTC/USD    12      9            │
+│ ETH/USD   2145     2146   2145 │ │ ETH/USD     4      3            │
+└────────────────────────────────┘ │ TOTAL       16     12           │
+                                   └────────────────────────────────┘
+┌─ Trade Log ───────────────────────┐ ┌─ Test Statistics ────────────┐
+│ BUY   BTC/USD  0.00100 @ 84230   │ │ threshold   12  58.3%  +$0.01│
+│   [ema           ]  test  12:34  │ │ ema          4  75.0%  +$0.00│
+│ DEPOSIT  A$800.00 → $512.50      │ │ bollinger    0  no trades     │
+│   rate 0.6406  fee $1.54  12:30  │ │ trend_pull   0  no trades     │
+└───────────────────────────────────┘ └──────────────────────────────┘
+TZ: Local  ·  Built: 2026-03-30 15:42
+ t  Toggle UTC/Local    tab  Switch Panel
 ```
 
-### Live Prices panel
+### Production mode
 
-One row per configured currency pair. Updated in-place on every price tick from Kraken — the row count never grows beyond the number of configured pairs.
+```
+┌─ Live Prices ──────────────────┐ ┌─ Past 7 Days ──────────┐ ┌─ Account Balance ──┐
+│ Pair     Bid      Ask    Last  │ │ Pair     Buys  Sells    │ │ USD   $1,234.56     │
+│ BTC/USD  84230    84231  84230 │ │ BTC/USD    12      9    │ │ BTC  0.00500000     │
+│ ETH/USD   2145     2146   2145 │ │ TOTAL      12      9    │ │ ETH  0.05000000     │
+└────────────────────────────────┘ └────────────────────────┘ └────────────────────┘
+┌─ Trade Log ────────────────────────────────────────────────────────────────────────┐
+│ BUY   BTC/USD  0.00059 @ 84230.00  [bollinger      ]  production  12:34:56        │
+│ DEPOSIT  A$800.00 → $512.50  rate 0.6406  fee $1.54  12:30:00                     │
+└────────────────────────────────────────────────────────────────────────────────────┘
+TZ: Local  ·  Built: 2026-03-30 15:42
+ t  Toggle UTC/Local    tab  Switch Panel
+```
+
+---
+
+## Panels
+
+### Live Prices
+
+One row per configured currency pair, updated in-place on every price tick from Kraken.
 
 Columns: `Pair` · `Bid` · `Ask` · `Last` · `Updated`
 
-### Trade Log panel
+### Past 7 Days
 
-Scrolling log of every trade fired during the session. Capped at 500 lines — oldest entries drop off as new ones arrive.
+Trade count summary for the last 7 days, refreshed every 30 seconds. Shows buys and sells per pair plus a TOTAL row.
 
-Each line format:
+### Account Balance *(production mode only)*
+
+Live Kraken account balance, refreshed every 30 seconds. Dust amounts below display thresholds are hidden.
+
+### Trade Log
+
+Scrolling log of trades and deposits, capped at 500 entries. Shows history from the database on startup, then appends live trades as they fire. Deposits (recorded via `cryptotrader-deposit`) are interleaved chronologically.
+
+Trade line format:
 ```
 SIDE  PAIR     QUANTITY  @      PRICE  [strategy      ]  mode  HH:MM:SS
 BUY   BTC/USD  0.00100  @  84230.00   [ema            ]  test  12:34:56
 ```
 
-### Test Statistics panel
+Deposit line format:
+```
+DEPOSIT  A$800.00 → $512.50  rate 0.6406  fee $1.54  HH:MM:SS
+```
 
-Only visible in `test` mode. Shows a per-strategy summary refreshed every 5 seconds:
+### Test Statistics *(test mode only)*
+
+Per-strategy summary refreshed every 5 seconds:
 
 ```
 threshold        12 trades   58.3%  P&L +$0.0142
@@ -71,36 +100,44 @@ trend_pullback    0 trades   —
 
 Columns: strategy name · trade count · win rate · cumulative P&L
 
-Stats are read from the SQLite database in a background thread so the UI never blocks.
-
 ---
 
-## Key bindings
+## Key Bindings
 
 | Key | Action |
 |-----|--------|
-| `tab` | Cycle focus between panels (use arrow / Page Up / Page Down to scroll focused panel) |
-| `t` | Toggle timestamps between local system timezone and UTC |
-| `q` | Quit |
-| `ctrl-c` | Quit |
+| `t` | Toggle timestamps between local timezone and UTC |
+| `tab` | Cycle focus between panels |
+| `q` / `ctrl-c` | Quit |
 
-Current timezone is shown in the status bar at the bottom of the screen.
-
-> **Note:** switching timezone only affects new entries — past trade log lines are not retroactively reformatted.
+Current timezone is shown in the status bar. Switching timezone re-renders the entire trade log.
 
 ---
 
-## Data flow
+## Status Bar
 
 ```
-Kraken WS ──► price_queue ──► Trader ──► tui_price_queue ──► PricePanel
-                                    └──► tui_trade_queue ──► TradeLogPanel
-                                    └──► SQLite (WAL) ◄────── StatsPanel (every 5s)
+TZ: Local  ·  Built: 2026-03-30 15:42
 ```
 
-- Price ticks are delivered to the TUI via an in-memory queue (`maxsize=100`). If the TUI falls behind, ticks are dropped silently — this avoids blocking the trading engine.
-- Trade entries arrive via a separate queue so the trade log is always in sync with what the engine actually executed.
-- Stats are queried directly from SQLite on a 5-second interval, independent of the queues.
+Shows the active timezone and the build timestamp of the installed package.
+
+---
+
+## Data Flow
+
+```
+Kraken WS ──► price_queue ──► PricePanel
+         └──► trade_queue ──► TradeLogPanel (live trades)
+                         └──► SQLite (WAL) ◄─── TradeLogPanel (history on mount)
+                                          ◄─── WeeklySummaryPanel (every 30s)
+                                          ◄─── StatsPanel (every 5s, test only)
+Kraken REST ◄────────────────────────────────── BalancePanel (every 30s, prod only)
+```
+
+- Price ticks are delivered via an in-memory queue (`maxsize=100`). If the TUI falls behind, ticks are dropped silently to avoid blocking the trading engine.
+- Trade entries arrive via a separate queue, always in sync with what the engine executed.
+- Stats and history are queried directly from SQLite in background threads so the UI never blocks.
 
 ---
 
@@ -108,7 +145,21 @@ Kraken WS ──► price_queue ──► Trader ──► tui_price_queue ─�
 
 | Mode | Behaviour |
 |------|-----------|
-| `test` | All 4 strategies run simultaneously per pair. No real orders placed. Stats panel visible. |
-| `production` | Single configured strategy per pair. Real orders sent to Kraken. Stats panel hidden. |
+| `test` | All strategies run simultaneously per pair. No real orders. Stats panel visible. Balance panel hidden. |
+| `production` | Single configured strategy per pair. Real orders sent to Kraken. Balance panel visible. Stats panel hidden. |
 
 Mode is set in `config/settings.toml` under `[mode] active`.
+
+---
+
+## Recording Deposits
+
+AUD→USD deposits are recorded manually and appear in the trade log:
+
+```bash
+cryptotrader-deposit --aud 800.00 --usd 512.50
+cryptotrader-deposit --aud 800.00 --usd 512.50 --fee 1.54 --notes "March top-up"
+cryptotrader-deposit --aud 800.00 --usd 512.50 --timestamp 2026-03-30T14:00:00
+```
+
+See `scripts/deposit.py` for full usage.
