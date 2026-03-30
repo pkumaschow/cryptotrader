@@ -58,3 +58,4 @@ deploy:
   environment:
     name: production
     url: http://pihole.homelab.com
+    deployment_tier: production
