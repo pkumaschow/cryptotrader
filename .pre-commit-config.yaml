@@ -1,0 +1,16 @@
+repos:
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff lint
+        entry: ruff check
+        language: system
+        types: [python]
+        pass_filenames: true
+
+      - id: pytest
+        name: pytest
+        entry: pytest tests/ -x -q --tb=short
+        language: system
+        pass_filenames: false
+        always_run: true
