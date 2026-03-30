@@ -43,7 +43,7 @@ deploy:
   before_script:
     - apk add --no-cache openssh-client rsync bash
     - eval $(ssh-agent -s)
-    - echo "$PI_SSH_PRIVATE_KEY" | tr -d '\r' > /tmp/pi_key
+    - echo "$PI_SSH_PRIVATE_KEY" | base64 -d > /tmp/pi_key
     - chmod 600 /tmp/pi_key
     - ssh-add /tmp/pi_key
     - rm /tmp/pi_key
