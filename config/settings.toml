@@ -13,6 +13,7 @@ stats_refresh_interval = 5
 [currencies."BTC/USD"]
 strategy = "ema"
 quantity = 0.001
+# budget_usd = 50.00   # Production: spend this USD amount per buy (sets quantity = budget_usd / price)
 
 [currencies."BTC/USD".threshold]
 buy_trigger = 65000.00
@@ -21,6 +22,7 @@ sell_trigger = 68000.00
 [currencies."ETH/USD"]
 strategy = "ema"
 quantity = 0.05
+# budget_usd = 50.00   # Production: spend this USD amount per buy (sets quantity = budget_usd / price)
 
 [currencies."ETH/USD".threshold]
 buy_trigger = 1900.00

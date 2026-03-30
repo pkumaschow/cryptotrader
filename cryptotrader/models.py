@@ -50,6 +50,16 @@ class Trade:
 
 
 @dataclass
+class Deposit:
+    aud_amount: float
+    usd_amount: float
+    fee_usd: float = 0.0
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    notes: Optional[str] = None
+    id: Optional[int] = None
+
+
+@dataclass
 class StatsResult:
     total_trades: int
     win_rate: float

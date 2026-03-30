@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import Generator, Optional
 
-from cryptotrader.models import Candle, Side, Trade
+from cryptotrader.models import Candle, Deposit, Side, Trade
 
 
 def init_db(path: str, read_only: bool = False) -> None:
@@ -25,6 +25,16 @@ def init_db(path: str, read_only: bool = False) -> None:
                 tick_count INTEGER NOT NULL,
                 timestamp  TEXT    NOT NULL,
                 UNIQUE(pair, timeframe, timestamp)
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS deposits (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                aud_amount REAL    NOT NULL,
+                usd_amount REAL    NOT NULL,
+                fee_usd    REAL    NOT NULL DEFAULT 0.0,
+                timestamp  TEXT    NOT NULL,
+                notes      TEXT
             )
         """)
         conn.execute("""
@@ -96,6 +106,48 @@ def query_candles(path: str, pair: str, timeframe: int, limit: int) -> list[Cand
             timestamp=datetime.fromisoformat(row["timestamp"]),
         )
         for row in reversed(rows)
+    ]
+
+
+def insert_deposit(path: str, deposit: Deposit) -> int:
+    with _connect(path) as conn:
+        cursor = conn.execute(
+            "INSERT INTO deposits (aud_amount, usd_amount, fee_usd, timestamp, notes) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (deposit.aud_amount, deposit.usd_amount, deposit.fee_usd,
+             deposit.timestamp.isoformat(), deposit.notes),
+        )
+        return cursor.lastrowid  # type: ignore[return-value]
+
+
+def query_deposits(
+    path: str,
+    since: Optional[datetime] = None,
+    until: Optional[datetime] = None,
+    read_only: bool = False,
+) -> list[Deposit]:
+    conditions: list[str] = []
+    params: list[object] = []
+    if since:
+        conditions.append("timestamp >= ?")
+        params.append(since.isoformat())
+    if until:
+        conditions.append("timestamp <= ?")
+        params.append(until.isoformat())
+    where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+    sql = f"SELECT * FROM deposits {where} ORDER BY timestamp ASC"
+    with _connect(path, read_only=read_only) as conn:
+        rows = conn.execute(sql, params).fetchall()
+    return [
+        Deposit(
+            id=row["id"],
+            aud_amount=row["aud_amount"],
+            usd_amount=row["usd_amount"],
+            fee_usd=row["fee_usd"],
+            timestamp=datetime.fromisoformat(row["timestamp"]),
+            notes=row["notes"],
+        )
+        for row in rows
     ]
 
 

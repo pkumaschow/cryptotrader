@@ -3,7 +3,7 @@ from __future__ import annotations
 import tomllib
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import BaseModel, field_validator
 from pydantic_settings import BaseSettings
@@ -34,6 +34,7 @@ class TrendPullbackParams(BaseModel):
 class CurrencyConfig(BaseModel):
     strategy: str = "ema"
     quantity: float
+    budget_usd: Optional[float] = None  # Production only: spend this USD amount per buy (overrides quantity)
     threshold: ThresholdParams = ThresholdParams()
     ema: EMAParams = EMAParams()
     bollinger: BollingerParams = BollingerParams()
