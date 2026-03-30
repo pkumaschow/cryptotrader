@@ -28,12 +28,12 @@ python -m cryptotrader.main --tui
 │ ETH/USD   2145     2146   2145 │ │ ETH/USD     4      3            │
 └────────────────────────────────┘ │ TOTAL       16     12           │
                                    └────────────────────────────────┘
-┌─ Trade Log ───────────────────────┐ ┌─ Test Statistics ────────────┐
-│ BUY   BTC/USD  0.00100 @ 84230   │ │ threshold   12  58.3%  +$0.01│
-│   [ema           ]  test  12:34  │ │ ema          4  75.0%  +$0.00│
-│ DEPOSIT  A$800.00 → $512.50      │ │ bollinger    0  no trades     │
-│   rate 0.6406  fee $1.54  12:30  │ │ trend_pull   0  no trades     │
-└───────────────────────────────────┘ └──────────────────────────────┘
+┌─ Trade Log ───────────────────────┐ ┌─ Test Statistics ──────────────────┐
+│ BUY   BTC/USD  0.00100 @ 84230   │ │ threshold     B:12 S:12  58.3% +$0.01│
+│   [ema           ]  test  12:34  │ │ ema           B:4  S:4   75.0% +$0.00│
+│ DEPOSIT  A$800.00 → $512.50      │ │ bollinger     B:3  S:0              │
+│   rate 0.6406  fee $1.54  12:30  │ │ trend_pullback  no trades yet       │
+└───────────────────────────────────┘ └────────────────────────────────────┘
 TZ: Local  ·  Built: 2026-03-30 15:42
  t  Toggle UTC/Local    tab  Switch Panel
 ```
@@ -92,13 +92,15 @@ DEPOSIT  A$800.00 → $512.50  rate 0.6406  fee $1.54  HH:MM:SS
 Per-strategy summary refreshed every 5 seconds:
 
 ```
-threshold        12 trades   58.3%  P&L +$0.0142
-ema               4 trades   75.0%  P&L +$0.0089
-bollinger         0 trades   —
-trend_pullback    0 trades   —
+threshold        B:12 S:12   58.3%  P&L +$0.0142
+ema              B:4  S:4    75.0%  P&L +$0.0089
+bollinger        B:3  S:0
+trend_pullback   no trades yet
 ```
 
-Columns: strategy name · trade count · win rate · cumulative P&L
+Columns: strategy name · buy count · sell count · win rate · cumulative P&L
+
+Win rate and P&L only appear once at least one BUY+SELL round-trip has completed. Open BUYs with no matching SELL are visible immediately via the `B:N` count.
 
 ---
 

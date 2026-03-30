@@ -21,14 +21,19 @@ def compute(pair: Optional[str] = None, mode: str = "test",
     gains: list[float] = []
     losses: list[float] = []
     open_buys: dict[str, list[Trade]] = {}
+    buys = 0
+    sells = 0
     for trade in trades:
         p = trade.pair
         if trade.side == Side.BUY:
+            buys += 1
             open_buys.setdefault(p, []).append(trade)
-        elif trade.side == Side.SELL and open_buys.get(p):
-            buy = open_buys[p].pop(0)
-            pnl = (trade.price - buy.price) * trade.quantity
-            (gains if pnl >= 0 else losses).append(pnl)
+        elif trade.side == Side.SELL:
+            sells += 1
+            if open_buys.get(p):
+                buy = open_buys[p].pop(0)
+                pnl = (trade.price - buy.price) * trade.quantity
+                (gains if pnl >= 0 else losses).append(pnl)
     completed = len(gains) + len(losses)
     win_rate = (len(gains) / completed * 100) if completed > 0 else 0.0
     return StatsResult(
@@ -36,6 +41,7 @@ def compute(pair: Optional[str] = None, mode: str = "test",
         total_pnl=sum(gains) + sum(losses),
         avg_gain=sum(gains) / len(gains) if gains else 0.0,
         avg_loss=sum(losses) / len(losses) if losses else 0.0,
+        buys=buys, sells=sells,
         pair=pair, strategy=strategy,
     )
 

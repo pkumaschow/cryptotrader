@@ -66,5 +66,7 @@ class StatsResult:
     total_pnl: float
     avg_gain: float
     avg_loss: float
+    buys: int = 0
+    sells: int = 0
     pair: Optional[str] = None
     strategy: Optional[str] = None
