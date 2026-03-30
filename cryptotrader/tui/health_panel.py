@@ -50,7 +50,7 @@ class HealthPanel(Widget):
         status_markup = "[green]OK[/green]" if all_ok else "[red]DEGRADED[/red]"
 
         db_ok = db_result["status"] == "ok"
-        db_markup = "[green]ok[/green]" if db_ok else f"[red]error[/red]"
+        db_markup = "[green]ok[/green]" if db_ok else "[red]error[/red]"
 
         kraken_ok = kraken_result["status"] == "ok"
         if kraken_ok:
