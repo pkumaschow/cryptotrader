@@ -58,7 +58,8 @@ class TradeExecutor:
             return False
 
     async def execute(self, signal: Signal, pair: str, price: float,
-                      strategy: str = "unknown") -> Optional[Trade]:
+                      strategy: str = "unknown",
+                      band_width: Optional[float] = None) -> Optional[Trade]:
         settings = get_settings()
         mode = settings.mode.active
         currency_cfg = settings.currencies[pair]
@@ -79,7 +80,7 @@ class TradeExecutor:
 
         trade = Trade(pair=pair, side=side, price=price,
                       quantity=quantity, mode=mode, strategy=strategy,
-                      timestamp=datetime.now(timezone.utc))
+                      timestamp=datetime.now(timezone.utc), band_width=band_width)
 
         if mode == "test":
             trade.id = database.insert_trade(settings.database.path, trade)

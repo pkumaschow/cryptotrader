@@ -46,6 +46,7 @@ class Trade:
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     pnl: Optional[float] = None
     txid: Optional[str] = None
+    band_width: Optional[float] = None
     id: Optional[int] = None
 
 

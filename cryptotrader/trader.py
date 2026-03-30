@@ -42,4 +42,6 @@ class Trader:
             for strategy in self._strategies.get(tick.pair, []):
                 signal = strategy.evaluate(tick)
                 if signal is not None:
-                    await self._executor.execute(signal, tick.pair, tick.last, strategy.name)
+                    band_width = getattr(strategy, "last_band_width", None)
+                    await self._executor.execute(signal, tick.pair, tick.last, strategy.name,
+                                                 band_width=band_width)

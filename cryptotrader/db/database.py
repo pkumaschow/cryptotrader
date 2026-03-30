@@ -39,18 +39,24 @@ def init_db(path: str, read_only: bool = False) -> None:
         """)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS trades (
-                id        INTEGER PRIMARY KEY AUTOINCREMENT,
-                pair      TEXT    NOT NULL,
-                side      TEXT    NOT NULL,
-                price     REAL    NOT NULL,
-                quantity  REAL    NOT NULL,
-                timestamp TEXT    NOT NULL,
-                mode      TEXT    NOT NULL,
-                strategy  TEXT    NOT NULL DEFAULT 'unknown',
-                pnl       REAL,
-                txid      TEXT
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                pair       TEXT    NOT NULL,
+                side       TEXT    NOT NULL,
+                price      REAL    NOT NULL,
+                quantity   REAL    NOT NULL,
+                timestamp  TEXT    NOT NULL,
+                mode       TEXT    NOT NULL,
+                strategy   TEXT    NOT NULL DEFAULT 'unknown',
+                pnl        REAL,
+                txid       TEXT,
+                band_width REAL
             )
         """)
+        # Migration: add band_width to existing databases
+        try:
+            conn.execute("ALTER TABLE trades ADD COLUMN band_width REAL")
+        except sqlite3.OperationalError:
+            pass  # column already exists
         conn.commit()
 
 
@@ -71,11 +77,12 @@ def insert_trade(path: str, trade: Trade) -> int:
     with _connect(path) as conn:
         cursor = conn.execute(
             """
-            INSERT INTO trades (pair, side, price, quantity, timestamp, mode, strategy, pnl, txid)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO trades (pair, side, price, quantity, timestamp, mode, strategy, pnl, txid, band_width)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (trade.pair, trade.side.value, trade.price, trade.quantity,
-             trade.timestamp.isoformat(), trade.mode, trade.strategy, trade.pnl, trade.txid),
+             trade.timestamp.isoformat(), trade.mode, trade.strategy, trade.pnl, trade.txid,
+             trade.band_width),
         )
         return cursor.lastrowid  # type: ignore[return-value]
 
@@ -189,6 +196,7 @@ def query_trades(
             mode=row["mode"],
             strategy=row["strategy"] if "strategy" in row.keys() else "unknown",
             pnl=row["pnl"], txid=row["txid"],
+            band_width=row["band_width"] if "band_width" in row.keys() else None,
         )
         for row in rows
     ]

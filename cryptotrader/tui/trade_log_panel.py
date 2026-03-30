@@ -26,10 +26,11 @@ def _render_trade(trade: Trade, use_utc: bool) -> str:
     strat_text = (trade.strategy or "unknown").ljust(14)
     mode_text  = trade.mode.ljust(4)
     ts         = _fmt_ts(trade.timestamp, use_utc)
-    pnl_str    = f"  P&L: [yellow]{trade.pnl:+.4f}[/yellow]" if trade.pnl is not None else ""
+    pnl_str = f"  P&L: [yellow]{trade.pnl:+.4f}[/yellow]" if trade.pnl is not None else ""
+    bw_str  = f"  bw: [dim]{trade.band_width:.2f}[/dim]" if trade.band_width is not None else ""
     return (
         f"[{color}]{side_text}[/{color}]  {pair_text}  {qty_text} @{price_text}  "
-        f"[[cyan]{strat_text}[/cyan]]  {mode_text}  {ts}{pnl_str}"
+        f"[[cyan]{strat_text}[/cyan]]  {mode_text}  {ts}{bw_str}{pnl_str}"
     )
 
 

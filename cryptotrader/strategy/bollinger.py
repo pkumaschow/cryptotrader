@@ -20,6 +20,7 @@ class BollingerStrategy(Strategy):
         self._candles = CandleBuilder(timeframe_minutes=60)
         self._in_position = False
         self._db_path: Optional[str] = None
+        self.last_band_width: Optional[float] = None
 
     def restore(self, db_path: str, pair: str) -> None:
         self._db_path = db_path
@@ -52,9 +53,11 @@ class BollingerStrategy(Strategy):
         if not self._in_position:
             if last_close > curr_upper and curr_width > prev_width:
                 self._in_position = True
+                self.last_band_width = round(curr_width, 4)
                 return Signal.BUY
         else:
             if last_close < curr_mid:
                 self._in_position = False
+                self.last_band_width = round(curr_width, 4)
                 return Signal.SELL
         return None
