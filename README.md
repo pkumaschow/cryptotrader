@@ -48,7 +48,18 @@ python -m cryptotrader.main
 python -m cryptotrader.main --tui
 ```
 
-See [docs/tui.md](docs/tui.md) for TUI layout, key bindings, and data flow.
+## TUI
+
+The optional terminal UI provides a live view of the running bot:
+
+- **Live Prices** — real-time bid/ask/last per pair via Kraken WebSocket
+- **Past 7 Days** — buy/sell counts per pair refreshed every 30s
+- **Account Balance** — live Kraken balance (production mode only)
+- **Service Health** — database and Kraken API connectivity, uptime, deploy timestamp
+- **Trade Log** — scrolling history of trades and deposits, interleaved chronologically
+- **Test Statistics** — per-strategy P&L and win rate (test mode only)
+
+See [docs/tui.md](docs/tui.md) for full layout, key bindings, and data flow.
 
 ## Deployment
 
