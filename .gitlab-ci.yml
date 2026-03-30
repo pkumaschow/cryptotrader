@@ -26,7 +26,7 @@ test:
   tags: [cryptotrader]
   script:
     - pip install --quiet -e ".[dev]"
-    - pytest tests/ -v --tb=short --cov=cryptotrader --cov-report=term-missing --cov-report=xml
+    - pytest tests/ -v --tb=short --cov=cryptotrader --cov-report=term-missing --cov-report=xml:coverage.xml
   coverage: '/TOTAL.*\s+(\d+%)$/'
   artifacts:
     reports:
