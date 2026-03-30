@@ -16,6 +16,7 @@ import sys
 from cryptotrader.config import get_settings
 from cryptotrader.db import database
 from cryptotrader.exchange.kraken_ws import KrakenWebSocket
+from cryptotrader.health import run as run_health
 from cryptotrader.models import PriceTick, Trade
 from cryptotrader.trader import Trader
 
@@ -54,6 +55,7 @@ async def _run(tui: bool) -> None:
 
     ws_task = asyncio.create_task(ws.run())
     trader_task = asyncio.create_task(trader.run())
+    health_task = asyncio.create_task(run_health())
 
     if tui:
         # Force a conservative terminal type so Textual skips advanced capability
@@ -77,9 +79,10 @@ async def _run(tui: bool) -> None:
             await ws.stop()
             ws_task.cancel()
             trader_task.cancel()
+            health_task.cancel()
     else:
         try:
-            await asyncio.gather(ws_task, trader_task)
+            await asyncio.gather(ws_task, trader_task, health_task)
         except asyncio.CancelledError:
             pass
 

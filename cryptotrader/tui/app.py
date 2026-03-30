@@ -12,11 +12,12 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.reactive import reactive
-from textual.widgets import Footer, Label
+from textual.widgets import Footer, Header, Label
 
 from cryptotrader.config import get_settings
 from cryptotrader.models import PriceTick, Trade
 from cryptotrader.tui.balance_panel import BalancePanel
+from cryptotrader.tui.health_panel import HealthPanel
 from cryptotrader.tui.price_panel import PricePanel
 from cryptotrader.tui.stats_panel import StatsPanel
 from cryptotrader.tui.trade_log_panel import TradeLogPanel
@@ -24,6 +25,7 @@ from cryptotrader.tui.weekly_summary_panel import WeeklySummaryPanel
 
 
 class CryptoTraderApp(App):
+    TITLE = "CryptoTrader"
     BINDINGS = [
         Binding("t", "toggle_tz", "Toggle UTC/Local", priority=True),
         Binding("tab", "focus_next", "Switch Panel", show=True),
@@ -41,6 +43,9 @@ class CryptoTraderApp(App):
         width: 1fr;
     }
     #weekly-summary-panel {
+        width: 1fr;
+    }
+    #health-panel {
         width: 1fr;
     }
     #bottom-row {
@@ -76,11 +81,13 @@ class CryptoTraderApp(App):
 
     def compose(self) -> ComposeResult:
         settings = get_settings()
+        yield Header()
         with Horizontal(id="top-row"):
             yield PricePanel(id="price-panel")
             yield WeeklySummaryPanel(id="weekly-summary-panel")
             if settings.mode.active == "production":
                 yield BalancePanel(id="balance-panel")
+            yield HealthPanel(id="health-panel")
         with Horizontal(id="bottom-row"):
             yield TradeLogPanel(id="trade-log-panel")
             if settings.mode.active == "test":
