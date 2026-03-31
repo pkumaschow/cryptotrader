@@ -57,6 +57,7 @@ class Deposit:
     fee_usd: float = 0.0
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     notes: Optional[str] = None
+    rate_mid: Optional[float] = None
     id: Optional[int] = None
 
 

@@ -27,6 +27,7 @@ def main() -> None:
     parser.add_argument("--aud",       type=float, required=True,  help="AUD amount deposited")
     parser.add_argument("--usd",       type=float, required=True,  help="USD amount received after conversion")
     parser.add_argument("--fee",       type=float, default=0.0,    help="Conversion fee in USD (default: 0.0)")
+    parser.add_argument("--rate-mid",  type=float, default=None,   help="Mid-market AUD/USD rate at time of deposit (e.g. from xe.com)")
     parser.add_argument("--notes",     type=str,   default=None,   help="Optional notes")
     parser.add_argument("--timestamp", type=str,   default=None,   help="ISO 8601 timestamp (default: now UTC)")
     args = parser.parse_args()
@@ -50,6 +51,7 @@ def main() -> None:
         fee_usd=args.fee,
         timestamp=ts,
         notes=args.notes,
+        rate_mid=args.rate_mid,
     )
 
     settings = get_settings()
@@ -59,8 +61,16 @@ def main() -> None:
     print(f"\n  Deposit recorded (id={deposit_id})")
     print(f"  AUD deposited : A${args.aud:,.2f}")
     print(f"  USD received  : ${args.usd:,.2f}")
-    print(f"  Rate          : {rate:.4f} (USD/AUD)")
+    print(f"  Rate (actual) : {rate:.4f} (USD/AUD)")
     print(f"  Fee           : ${args.fee:.2f}")
+    if args.rate_mid:
+        usd_at_mid = args.aud * args.rate_mid
+        spread_cost = usd_at_mid - args.usd
+        total_cost = args.fee + spread_cost
+        all_in_pct = (total_cost / usd_at_mid * 100) if usd_at_mid else 0.0
+        print(f"  Rate (mid)    : {args.rate_mid:.4f} (USD/AUD)")
+        print(f"  Spread cost   : ${spread_cost:.2f}  (mid value ${usd_at_mid:,.2f})")
+        print(f"  Total cost    : ${total_cost:.2f}  ({all_in_pct:.2f}% all-in)")
     print(f"  Timestamp     : {ts.strftime('%Y-%m-%d %H:%M:%S UTC')}")
     if args.notes:
         print(f"  Notes         : {args.notes}")

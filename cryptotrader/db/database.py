@@ -34,9 +34,14 @@ def init_db(path: str, read_only: bool = False) -> None:
                 usd_amount REAL    NOT NULL,
                 fee_usd    REAL    NOT NULL DEFAULT 0.0,
                 timestamp  TEXT    NOT NULL,
-                notes      TEXT
+                notes      TEXT,
+                rate_mid   REAL
             )
         """)
+        try:
+            conn.execute("ALTER TABLE deposits ADD COLUMN rate_mid REAL")
+        except sqlite3.OperationalError:
+            pass  # column already exists
         conn.execute("""
             CREATE TABLE IF NOT EXISTS trades (
                 id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -119,10 +124,10 @@ def query_candles(path: str, pair: str, timeframe: int, limit: int) -> list[Cand
 def insert_deposit(path: str, deposit: Deposit) -> int:
     with _connect(path) as conn:
         cursor = conn.execute(
-            "INSERT INTO deposits (aud_amount, usd_amount, fee_usd, timestamp, notes) "
-            "VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO deposits (aud_amount, usd_amount, fee_usd, timestamp, notes, rate_mid) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
             (deposit.aud_amount, deposit.usd_amount, deposit.fee_usd,
-             deposit.timestamp.isoformat(), deposit.notes),
+             deposit.timestamp.isoformat(), deposit.notes, deposit.rate_mid),
         )
         return cursor.lastrowid  # type: ignore[return-value]
 
@@ -153,6 +158,7 @@ def query_deposits(
             fee_usd=row["fee_usd"],
             timestamp=datetime.fromisoformat(row["timestamp"]),
             notes=row["notes"],
+            rate_mid=row["rate_mid"] if "rate_mid" in row.keys() else None,
         )
         for row in rows
     ]
