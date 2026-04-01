@@ -2,6 +2,7 @@ stages:
   - lint
   - test
   - deploy
+  - provenance
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
@@ -60,3 +61,74 @@ deploy:
     name: production
     url: http://pihole.homelab.com
     deployment_tier: production
+
+provenance:
+  stage: provenance
+  image: python:3.11-slim
+  tags: [cryptotrader]
+  script:
+    - |
+      python3 - <<'EOF'
+      import json, os, datetime
+
+      provenance = {
+        "_type": "https://in-toto.io/Statement/v0.1",
+        "predicateType": "https://slsa.dev/provenance/v0.2",
+        "subject": [
+          {
+            "name": os.environ["CI_PROJECT_NAME"],
+            "digest": {"sha1": os.environ["CI_COMMIT_SHA"]}
+          }
+        ],
+        "predicate": {
+          "builder": {
+            "id": f"{os.environ['CI_PROJECT_URL']}/-/pipelines/{os.environ['CI_PIPELINE_ID']}"
+          },
+          "buildType": "https://gitlab.com/gitlab-org/gitlab-runner/-/blob/main/PROCESS.md",
+          "invocation": {
+            "configSource": {
+              "uri": f"{os.environ['CI_PROJECT_URL']}@{os.environ['CI_COMMIT_SHA']}",
+              "digest": {"sha1": os.environ["CI_COMMIT_SHA"]},
+              "entryPoint": ".gitlab-ci.yml"
+            },
+            "parameters": {
+              "CI_PIPELINE_SOURCE": os.environ.get("CI_PIPELINE_SOURCE", ""),
+              "CI_COMMIT_REF_NAME": os.environ.get("CI_COMMIT_REF_NAME", "")
+            },
+            "environment": {
+              "CI_RUNNER_ID": os.environ.get("CI_RUNNER_ID", ""),
+              "CI_RUNNER_DESCRIPTION": os.environ.get("CI_RUNNER_DESCRIPTION", "")
+            }
+          },
+          "metadata": {
+            "buildInvocationId": os.environ["CI_JOB_ID"],
+            "buildStartedOn": os.environ.get("CI_PIPELINE_CREATED_AT", ""),
+            "completeness": {
+              "parameters": True,
+              "environment": False,
+              "materials": False
+            },
+            "reproducible": False
+          },
+          "materials": [
+            {
+              "uri": os.environ["CI_PROJECT_URL"],
+              "digest": {"sha1": os.environ["CI_COMMIT_SHA"]}
+            }
+          ]
+        }
+      }
+
+      with open("provenance.json", "w") as f:
+        json.dump(provenance, f, indent=2)
+
+      print("SLSA Level 1 provenance generated:")
+      print(json.dumps(provenance, indent=2))
+      EOF
+  artifacts:
+    name: "provenance-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - provenance.json
+    expire_in: 1 year
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
