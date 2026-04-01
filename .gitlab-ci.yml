@@ -68,8 +68,14 @@ provenance:
   tags: [cryptotrader]
   script:
     - |
-      python3 - <<'EOF'
-      import json, os, datetime
+      # Install cosign
+      apt-get update -qq && apt-get install -y -qq curl
+      curl -sSfL https://github.com/sigstore/cosign/releases/download/v3.0.5/cosign-linux-amd64 \
+        -o /usr/local/bin/cosign && chmod +x /usr/local/bin/cosign
+
+      # Generate SLSA v0.2 provenance
+      python3 - <<'PYEOF'
+      import json, os
 
       provenance = {
         "_type": "https://in-toto.io/Statement/v0.1",
@@ -122,13 +128,23 @@ provenance:
       with open("provenance.json", "w") as f:
         json.dump(provenance, f, indent=2)
 
-      print("SLSA Level 1 provenance generated:")
+      print("SLSA Level 2 provenance generated:")
       print(json.dumps(provenance, indent=2))
-      EOF
+      PYEOF
+
+      # Sign provenance with cosign key-pair (SLSA Level 2 — authenticated provenance)
+      printf '%s' "$COSIGN_PRIVATE_KEY" > /tmp/cosign.key
+      COSIGN_PASSWORD="$COSIGN_PASSWORD" cosign sign-blob \
+        --key /tmp/cosign.key \
+        --bundle provenance.bundle \
+        --yes \
+        provenance.json
+      rm -f /tmp/cosign.key
   artifacts:
     name: "provenance-$CI_COMMIT_SHORT_SHA"
     paths:
       - provenance.json
+      - provenance.bundle
     expire_in: 1 year
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push"'
