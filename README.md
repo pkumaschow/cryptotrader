@@ -2,6 +2,8 @@
 
 Python-based algorithmic trading bot for Kraken, with a live Textual TUI and SQLite trade log.
 
+[![CI](https://github.com/pkumaschow/cryptotrader/actions/workflows/ci.yml/badge.svg)](https://github.com/pkumaschow/cryptotrader/actions/workflows/ci.yml)
+
 ## Setup
 
 ```bash
