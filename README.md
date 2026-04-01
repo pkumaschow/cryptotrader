@@ -113,6 +113,29 @@ bash deploy/deploy-local.sh           # deploy current working tree to Pi
 bash deploy/deploy-local.sh --skip-pull  # skip git pull step
 ```
 
+## Supply Chain Security
+
+Every push to `main` generates a [SLSA Level 3](https://slsa.dev/spec/v1.0/levels) provenance attestation signed by GitHub's OIDC provider via Sigstore.
+
+**Prerequisites:**
+```bash
+gh extension install github/gh-attestation   # if not already installed
+```
+
+**Verify a release artifact:**
+```bash
+# Download the artifact from the Actions run
+gh run download --repo pkumaschow/cryptotrader --name dist --dir /tmp/ct-dist
+
+# Verify provenance
+gh attestation verify /tmp/ct-dist/cryptotrader-0.1.0.tar.gz --repo pkumaschow/cryptotrader
+```
+
+A successful verification confirms:
+- The artifact was built by the `provenance.yml` workflow in this repository
+- It was built from the `main` branch on GitHub-hosted runners
+- The provenance is recorded in the public [Sigstore Rekor](https://rekor.sigstore.dev) transparency log
+
 ## Inspecting the Database
 
 The trade log is stored in `cryptotrader.db` (SQLite, WAL mode).
