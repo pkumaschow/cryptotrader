@@ -1,27 +1,28 @@
 IMAGE   := pkumaschow/cryptotrader
 TAG     := latest
 ENVFILE := .env
+CTR     := docker
 
 build:
-	docker build -t $(IMAGE):$(TAG) .
+	$(CTR) build -t $(IMAGE):$(TAG) .
 
 run:
-	docker run --rm \
+	$(CTR) run --rm \
 	  --env-file $(ENVFILE) \
 	  -v $(PWD)/cryptotrader.db:/app/cryptotrader.db \
 	  $(IMAGE):$(TAG)
 
 tui:
-	docker run --rm -it \
+	$(CTR) run --rm -it \
 	  --env-file $(ENVFILE) \
 	  -v $(PWD)/cryptotrader.db:/app/cryptotrader.db \
 	  $(IMAGE):$(TAG) --tui
 
 push:
-	docker push $(IMAGE):$(TAG)
+	$(CTR) push $(IMAGE):$(TAG)
 
 shell:
-	docker run --rm -it \
+	$(CTR) run --rm -it \
 	  --env-file $(ENVFILE) \
 	  -v $(PWD)/cryptotrader.db:/app/cryptotrader.db \
 	  --entrypoint bash \
