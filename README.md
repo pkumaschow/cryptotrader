@@ -63,6 +63,49 @@ See [docs/tui.md](docs/tui.md) for full layout, key bindings, and data flow.
 
 ## Deployment
 
+### Ansible (recommended)
+
+**Prerequisites:**
+```bash
+pip install ansible
+ansible-galaxy collection install ansible.posix
+```
+
+**Configure inventory** — edit `deploy/inventory.ini` to set your Pi's hostname/IP and SSH user:
+```ini
+[pi]
+pihole ansible_host=192.168.1.66 ansible_user=peterk
+```
+
+**Run the playbook:**
+```bash
+ansible-playbook deploy/playbook.yml -i deploy/inventory.ini
+```
+
+The playbook:
+- Creates `/opt/cryptotrader/` on the Pi
+- Syncs the project source (excludes `.git`, `.venv`, `.env`, `cryptotrader.db`)
+- Creates a placeholder `.env` if one doesn't exist — never overwrites an existing one
+- Creates a Python virtualenv and installs all dependencies
+- Installs and restarts the `cryptotrader` systemd service
+- Prints service status and trading statistics on completion
+
+**After first deploy** — set your Kraken API keys directly on the Pi:
+```bash
+ssh peterk@192.168.1.66 'nano /opt/cryptotrader/.env'
+sudo systemctl restart cryptotrader
+```
+
+**Useful post-deploy commands:**
+```bash
+journalctl -fu cryptotrader
+ssh peterk@192.168.1.66 '/opt/cryptotrader/venv/bin/cryptotrader-stats'
+ssh peterk@192.168.1.66 'cd /opt/cryptotrader && venv/bin/python -m cryptotrader.main --tui'
+ssh peterk@192.168.1.66 '/opt/cryptotrader/venv/bin/litecli /opt/cryptotrader/cryptotrader.db --warn'
+```
+
+### Local script
+
 ```bash
 bash deploy/deploy-local.sh           # deploy current working tree to Pi
 bash deploy/deploy-local.sh --skip-pull  # skip git pull step
