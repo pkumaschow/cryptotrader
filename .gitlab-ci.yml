@@ -133,7 +133,7 @@ provenance:
       PYEOF
 
       # Sign provenance with cosign key-pair (SLSA Level 2 — authenticated provenance)
-      printf '%s' "$COSIGN_PRIVATE_KEY" > /tmp/cosign.key
+      echo "$COSIGN_PRIVATE_KEY" | base64 -d > /tmp/cosign.key
       COSIGN_PASSWORD="$COSIGN_PASSWORD" cosign sign-blob \
         --key /tmp/cosign.key \
         --bundle provenance.bundle \
