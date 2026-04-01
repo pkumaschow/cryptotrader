@@ -4,7 +4,7 @@ ENVFILE := .env
 CTR     := docker
 
 build:
-	$(CTR)build -t $(IMAGE):$(TAG) .
+	$(CTR) build -t $(IMAGE):$(TAG) .
 
 run:
 	$(CTR) run --rm \
