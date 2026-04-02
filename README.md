@@ -55,7 +55,7 @@ python -m cryptotrader.main --tui
 The image is published to Docker Hub on every push to `main`.
 
 ```bash
-docker pull pkumaschow/cryptotrader:latest
+docker pull docker.io/pkumaschow/cryptotrader:latest
 ```
 
 **Using the Makefile (recommended):**
