@@ -48,6 +48,47 @@ python -m cryptotrader.main
 python -m cryptotrader.main --tui
 ```
 
+## Docker
+
+The image is built and pushed to the GitLab container registry on every push to `main`.
+
+```bash
+docker pull gitlab.homelab.com:5050/peterk/cryptotrader:latest
+```
+
+**Using the Makefile (recommended):**
+```bash
+make build              # build image locally
+make run                # run headless (reads .env, mounts cryptotrader.db)
+make tui                # run with interactive TUI
+make shell              # open a bash shell inside the container
+make push               # push to the registry
+
+# Use Podman instead of Docker
+make run CTR=podman
+```
+
+**Direct invocation:**
+```bash
+# Headless
+docker run --rm \
+  --env-file .env \
+  -v $(pwd)/cryptotrader.db:/app/cryptotrader.db \
+  gitlab.homelab.com:5050/peterk/cryptotrader:latest
+
+# With TUI
+docker run --rm -it \
+  --env-file .env \
+  -v $(pwd)/cryptotrader.db:/app/cryptotrader.db \
+  gitlab.homelab.com:5050/peterk/cryptotrader:latest --tui
+```
+
+**Notes:**
+- The database is bind-mounted from the host so trade data persists across container restarts. The file is created automatically if it does not exist.
+- On Fedora/RHEL with SELinux, use Podman and append `:Z` to the volume flag: `-v $(pwd)/cryptotrader.db:/app/cryptotrader.db:Z`. The Makefile handles this automatically via `make run CTR=podman`.
+- Pass Kraken API keys via `.env` (copy `.env.example` as a starting point) or as individual `-e KRAKEN_API_KEY=...` flags.
+- The registry requires authentication: `docker login gitlab.homelab.com:5050`
+
 ## TUI
 
 The optional terminal UI provides a live view of the running bot:
