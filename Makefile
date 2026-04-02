@@ -10,14 +10,14 @@ run:
 	touch $(PWD)/cryptotrader.db && chmod 666 $(PWD)/cryptotrader.db
 	$(CTR) run --rm \
 	  --env-file $(ENVFILE) \
-	  -v $(PWD)/cryptotrader.db:/app/cryptotrader.db \
+	  -v $(PWD)/cryptotrader.db:/app/cryptotrader.db:Z \
 	  $(IMAGE):$(TAG)
 
 tui:
 	touch $(PWD)/cryptotrader.db && chmod 666 $(PWD)/cryptotrader.db
 	$(CTR) run --rm -it \
 	  --env-file $(ENVFILE) \
-	  -v $(PWD)/cryptotrader.db:/app/cryptotrader.db \
+	  -v $(PWD)/cryptotrader.db:/app/cryptotrader.db:Z \
 	  $(IMAGE):$(TAG) --tui
 
 push:
@@ -27,7 +27,7 @@ shell:
 	touch $(PWD)/cryptotrader.db && chmod 666 $(PWD)/cryptotrader.db
 	$(CTR) run --rm -it \
 	  --env-file $(ENVFILE) \
-	  -v $(PWD)/cryptotrader.db:/app/cryptotrader.db \
+	  -v $(PWD)/cryptotrader.db:/app/cryptotrader.db:Z \
 	  --entrypoint bash \
 	  $(IMAGE):$(TAG)
 
