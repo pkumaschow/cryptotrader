@@ -62,6 +62,14 @@ def init_db(path: str, read_only: bool = False) -> None:
             conn.execute("ALTER TABLE trades ADD COLUMN band_width REAL")
         except sqlite3.OperationalError:
             pass  # column already exists
+        # Migration: unique guard against concurrent-instance duplicate trades
+        try:
+            conn.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_trades_unique "
+                "ON trades (pair, strategy, timestamp, side)"
+            )
+        except sqlite3.IntegrityError:
+            pass  # existing duplicate rows — index skipped, file lock is primary guard
         conn.commit()
 
 
@@ -79,17 +87,23 @@ def _connect(path: str, read_only: bool = False) -> Generator[sqlite3.Connection
 
 
 def insert_trade(path: str, trade: Trade) -> int:
-    with _connect(path) as conn:
-        cursor = conn.execute(
-            """
-            INSERT INTO trades (pair, side, price, quantity, timestamp, mode, strategy, pnl, txid, band_width)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (trade.pair, trade.side.value, trade.price, trade.quantity,
-             trade.timestamp.isoformat(), trade.mode, trade.strategy, trade.pnl, trade.txid,
-             trade.band_width),
-        )
-        return cursor.lastrowid  # type: ignore[return-value]
+    try:
+        with _connect(path) as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO trades (pair, side, price, quantity, timestamp, mode, strategy, pnl, txid, band_width)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (trade.pair, trade.side.value, trade.price, trade.quantity,
+                 trade.timestamp.isoformat(), trade.mode, trade.strategy, trade.pnl, trade.txid,
+                 trade.band_width),
+            )
+            return cursor.lastrowid  # type: ignore[return-value]
+    except sqlite3.IntegrityError as exc:
+        raise RuntimeError(
+            f"Duplicate trade rejected ({trade.side.value.upper()} {trade.pair} "
+            f"@ {trade.price} [{trade.strategy}]): {exc}"
+        ) from exc
 
 
 def insert_candle(path: str, candle: Candle) -> None:
