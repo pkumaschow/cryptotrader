@@ -3,7 +3,8 @@ Entry point. Wires all components together and starts the asyncio event loop.
 
 Usage:
     python -m cryptotrader.main          # headless (logs to stdout/journald)
-    python -m cryptotrader.main --tui    # with Textual TUI
+    python -m cryptotrader.main --tui    # with Textual TUI (starts trader)
+    python -m cryptotrader.main --tui    # monitor mode if service already running
 """
 from __future__ import annotations
 
@@ -13,6 +14,7 @@ import fcntl
 import logging
 import os
 import sys
+from datetime import datetime, timedelta, timezone
 
 from cryptotrader.config import get_settings
 from cryptotrader.db import database
@@ -27,19 +29,17 @@ logger = logging.getLogger(__name__)
 _lock_fh: list[object] = []
 
 
-def _acquire_instance_lock(db_path: str) -> None:
-    """Prevent multiple concurrent CryptoTrader instances sharing the same database."""
+def _acquire_instance_lock(db_path: str) -> bool:
+    """Try to acquire an exclusive instance lock. Returns True if acquired."""
     lock_path = os.path.splitext(db_path)[0] + ".lock"
     fh = open(lock_path, "w")
     try:
         fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
         fh.close()
-        sys.exit(
-            f"ERROR: Another CryptoTrader instance is already running "
-            f"(lock: {lock_path}). Stop it before starting a new one."
-        )
+        return False
     _lock_fh.append(fh)
+    return True
 
 
 def _configure_logging(tui: bool) -> None:
@@ -54,6 +54,66 @@ def _configure_logging(tui: bool) -> None:
         )
     else:
         logging.basicConfig(level=logging.INFO, format=fmt, stream=sys.stdout)
+
+
+def _tui_terminal_setup() -> None:
+    # Force a conservative terminal type so Textual skips advanced capability
+    # probing (Sixel, focus-reporting, etc.) that leaks escape codes over SSH.
+    os.environ["TERM"] = "xterm-256color"
+    # Disable all terminal mouse-tracking modes before Textual initialises.
+    sys.stdout.write(
+        "\x1b[?1000l"  # disable X10 mouse
+        "\x1b[?1002l"  # disable button-event mouse
+        "\x1b[?1003l"  # disable all-motion mouse
+        "\x1b[?1006l"  # disable SGR extended mouse
+        "\x1b[?1015l"  # disable URXVT extended mouse
+        "\x1b[?1004l"  # disable focus reporting
+    )
+    sys.stdout.flush()
+
+
+async def _poll_new_trades(trade_queue: asyncio.Queue[Trade], db_path: str) -> None:
+    """Push trades written by the running service into the TUI trade queue."""
+    # Seed cursor so we only pick up trades that arrive after monitor starts.
+    last_ts: datetime = datetime.now(timezone.utc)
+    while True:
+        await asyncio.sleep(3)
+        try:
+            new_trades = database.query_trades(
+                db_path, since=last_ts + timedelta(microseconds=1), read_only=True
+            )
+            for trade in new_trades:
+                last_ts = trade.timestamp
+                try:
+                    trade_queue.put_nowait(trade)
+                except asyncio.QueueFull:
+                    pass
+        except Exception:
+            pass
+
+
+async def _run_monitor() -> None:
+    """Monitor mode: display prices and DB trades without starting a Trader."""
+    settings = get_settings()
+    pairs = list(settings.currencies.keys())
+    logger.info("Starting CryptoTrader monitor | pairs=%s", pairs)
+
+    price_queue: asyncio.Queue[PriceTick] = asyncio.Queue(maxsize=100)
+    trade_queue: asyncio.Queue[Trade] = asyncio.Queue(maxsize=100)
+
+    ws = KrakenWebSocket(pairs, price_queue)
+    ws_task = asyncio.create_task(ws.run())
+    poller_task = asyncio.create_task(_poll_new_trades(trade_queue, settings.database.path))
+
+    _tui_terminal_setup()
+    from cryptotrader.tui.app import CryptoTraderApp
+    app = CryptoTraderApp(price_queue, trade_queue)
+    try:
+        await app.run_async(mouse=False)
+    finally:
+        await ws.stop()
+        ws_task.cancel()
+        poller_task.cancel()
 
 
 async def _run(tui: bool) -> None:
@@ -77,19 +137,7 @@ async def _run(tui: bool) -> None:
     health_task = asyncio.create_task(run_health())
 
     if tui:
-        # Force a conservative terminal type so Textual skips advanced capability
-        # probing (Sixel, focus-reporting, etc.) that leaks escape codes over SSH.
-        os.environ["TERM"] = "xterm-256color"
-        # Disable all terminal mouse-tracking modes before Textual initialises.
-        sys.stdout.write(
-            "\x1b[?1000l"  # disable X10 mouse
-            "\x1b[?1002l"  # disable button-event mouse
-            "\x1b[?1003l"  # disable all-motion mouse
-            "\x1b[?1006l"  # disable SGR extended mouse
-            "\x1b[?1015l"  # disable URXVT extended mouse
-            "\x1b[?1004l"  # disable focus reporting
-        )
-        sys.stdout.flush()
+        _tui_terminal_setup()
         from cryptotrader.tui.app import CryptoTraderApp
         app = CryptoTraderApp(tui_price_queue, trade_queue)
         try:
@@ -113,7 +161,20 @@ def main() -> None:
     _configure_logging(tui=args.tui)
 
     settings = get_settings()
-    _acquire_instance_lock(settings.database.path)
+    lock_acquired = _acquire_instance_lock(settings.database.path)
+
+    if not lock_acquired:
+        if args.tui:
+            logger.info("Service already running — starting in monitor mode (read-only)")
+            try:
+                asyncio.run(_run_monitor())
+            except KeyboardInterrupt:
+                pass
+            return
+        sys.exit(
+            "ERROR: Another CryptoTrader instance is already running. "
+            "Stop it before starting a new one."
+        )
 
     try:
         asyncio.run(_run(tui=args.tui))
