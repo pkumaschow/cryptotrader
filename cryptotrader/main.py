@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import fcntl
 import logging
 import os
 import sys
@@ -21,6 +22,24 @@ from cryptotrader.models import PriceTick, Trade
 from cryptotrader.trader import Trader
 
 logger = logging.getLogger(__name__)
+
+# Held open for the lifetime of the process — lock releases on exit.
+_lock_fh: list[object] = []
+
+
+def _acquire_instance_lock(db_path: str) -> None:
+    """Prevent multiple concurrent CryptoTrader instances sharing the same database."""
+    lock_path = os.path.splitext(db_path)[0] + ".lock"
+    fh = open(lock_path, "w")
+    try:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        fh.close()
+        sys.exit(
+            f"ERROR: Another CryptoTrader instance is already running "
+            f"(lock: {lock_path}). Stop it before starting a new one."
+        )
+    _lock_fh.append(fh)
 
 
 def _configure_logging(tui: bool) -> None:
@@ -92,6 +111,9 @@ def main() -> None:
     parser.add_argument("--tui", action="store_true", help="Launch interactive TUI")
     args = parser.parse_args()
     _configure_logging(tui=args.tui)
+
+    settings = get_settings()
+    _acquire_instance_lock(settings.database.path)
 
     try:
         asyncio.run(_run(tui=args.tui))
