@@ -43,10 +43,22 @@ Edit `config/settings.toml`:
 python -m cryptotrader.main
 ```
 
-**With TUI:**
+**With TUI (full mode — starts its own trader):**
 ```bash
 python -m cryptotrader.main --tui
 ```
+
+**Monitor mode — TUI alongside a running service:**
+
+`--tui` detects whether the service already holds the instance lock and automatically starts in monitor mode if so. No second trader is started; prices come from a read-only WebSocket connection and trades are polled from the database every 3 seconds.
+
+```bash
+# Service is running via systemd — just launch the TUI normally:
+python -m cryptotrader.main --tui
+# Logs: "Service already running — starting in monitor mode (read-only)"
+```
+
+Attempting to start a second **headless** instance while the service is running exits immediately with an error.
 
 ## Docker
 
@@ -99,6 +111,8 @@ The optional terminal UI provides a live view of the running bot:
 - **Service Health** — database and Kraken API connectivity, uptime, deploy timestamp
 - **Trade Log** — scrolling history of trades and deposits, interleaved chronologically
 - **Test Statistics** — per-strategy P&L and win rate (test mode only)
+
+Runs in **full mode** (own trader + WS) when no service is active, or **monitor mode** (read-only WS + DB polling) when the service is already running — no configuration needed, detected automatically.
 
 See [docs/tui.md](docs/tui.md) for full layout, key bindings, and data flow.
 
