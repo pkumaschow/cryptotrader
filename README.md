@@ -2,8 +2,6 @@
 
 Python-based algorithmic trading bot for Kraken, with a live Textual TUI and SQLite trade log.
 
-[![CI](https://github.com/pkumaschow/cryptotrader/actions/workflows/ci.yml/badge.svg)](https://github.com/pkumaschow/cryptotrader/actions/workflows/ci.yml)
-
 ## Setup
 
 ```bash
@@ -45,17 +43,29 @@ Edit `config/settings.toml`:
 python -m cryptotrader.main
 ```
 
-**With TUI:**
+**With TUI (full mode — starts its own trader):**
 ```bash
 python -m cryptotrader.main --tui
 ```
 
-## Docker
+**Monitor mode — TUI alongside a running service:**
 
-The image is published to Docker Hub on every push to `main`.
+`--tui` detects whether the service already holds the instance lock and automatically starts in monitor mode if so. No second trader is started; prices come from a read-only WebSocket connection and trades are polled from the database every 3 seconds.
 
 ```bash
-docker pull docker.io/pkumaschow/cryptotrader:latest
+# Service is running via systemd — just launch the TUI normally:
+python -m cryptotrader.main --tui
+# Logs: "Service already running — starting in monitor mode (read-only)"
+```
+
+Attempting to start a second **headless** instance while the service is running exits immediately with an error.
+
+## Docker
+
+The image is built and pushed to the GitLab container registry on every push to `main`.
+
+```bash
+docker pull gitlab.homelab.com:5050/peterk/cryptotrader:latest
 ```
 
 **Using the Makefile (recommended):**
@@ -64,7 +74,7 @@ make build              # build image locally
 make run                # run headless (reads .env, mounts cryptotrader.db)
 make tui                # run with interactive TUI
 make shell              # open a bash shell inside the container
-make push               # push to Docker Hub
+make push               # push to the registry
 
 # Use Podman instead of Docker
 make run CTR=podman
@@ -76,19 +86,20 @@ make run CTR=podman
 docker run --rm \
   --env-file .env \
   -v $(pwd)/cryptotrader.db:/app/cryptotrader.db \
-  pkumaschow/cryptotrader:latest
+  gitlab.homelab.com:5050/peterk/cryptotrader:latest
 
 # With TUI
 docker run --rm -it \
   --env-file .env \
   -v $(pwd)/cryptotrader.db:/app/cryptotrader.db \
-  pkumaschow/cryptotrader:latest --tui
+  gitlab.homelab.com:5050/peterk/cryptotrader:latest --tui
 ```
 
 **Notes:**
 - The database is bind-mounted from the host so trade data persists across container restarts. The file is created automatically if it does not exist.
 - On Fedora/RHEL with SELinux, use Podman and append `:Z` to the volume flag: `-v $(pwd)/cryptotrader.db:/app/cryptotrader.db:Z`. The Makefile handles this automatically via `make run CTR=podman`.
 - Pass Kraken API keys via `.env` (copy `.env.example` as a starting point) or as individual `-e KRAKEN_API_KEY=...` flags.
+- The registry requires authentication: `docker login gitlab.homelab.com:5050`
 
 ## TUI
 
@@ -101,52 +112,11 @@ The optional terminal UI provides a live view of the running bot:
 - **Trade Log** — scrolling history of trades and deposits, interleaved chronologically
 - **Test Statistics** — per-strategy P&L and win rate (test mode only)
 
+Runs in **full mode** (own trader + WS) when no service is active, or **monitor mode** (read-only WS + DB polling) when the service is already running — no configuration needed, detected automatically.
+
 See [docs/tui.md](docs/tui.md) for full layout, key bindings, and data flow.
 
 ## Deployment
-
-### Ansible (recommended)
-
-**Prerequisites:**
-```bash
-pip install ansible
-ansible-galaxy collection install ansible.posix
-```
-
-**Configure inventory** — edit `deploy/inventory.ini` to set your Pi's hostname/IP and SSH user:
-```ini
-[pi]
-pihole ansible_host=192.168.1.66 ansible_user=peterk
-```
-
-**Run the playbook:**
-```bash
-ansible-playbook deploy/playbook.yml -i deploy/inventory.ini
-```
-
-The playbook:
-- Creates `/opt/cryptotrader/` on the Pi
-- Syncs the project source (excludes `.git`, `.venv`, `.env`, `cryptotrader.db`)
-- Creates a placeholder `.env` if one doesn't exist — never overwrites an existing one
-- Creates a Python virtualenv and installs all dependencies
-- Installs and restarts the `cryptotrader` systemd service
-- Prints service status and trading statistics on completion
-
-**After first deploy** — set your Kraken API keys directly on the Pi:
-```bash
-ssh peterk@192.168.1.66 'nano /opt/cryptotrader/.env'
-sudo systemctl restart cryptotrader
-```
-
-**Useful post-deploy commands:**
-```bash
-journalctl -fu cryptotrader
-ssh peterk@192.168.1.66 '/opt/cryptotrader/venv/bin/cryptotrader-stats'
-ssh peterk@192.168.1.66 'cd /opt/cryptotrader && venv/bin/python -m cryptotrader.main --tui'
-ssh peterk@192.168.1.66 '/opt/cryptotrader/venv/bin/litecli /opt/cryptotrader/cryptotrader.db --warn'
-```
-
-### Local script
 
 ```bash
 bash deploy/deploy-local.sh           # deploy current working tree to Pi
@@ -155,26 +125,28 @@ bash deploy/deploy-local.sh --skip-pull  # skip git pull step
 
 ## Supply Chain Security
 
-Every push to `main` generates a [SLSA Level 3](https://slsa.dev/spec/v1.0/levels) provenance attestation signed by GitHub's OIDC provider via Sigstore.
+Every push generates a [SLSA Level 2](https://slsa.dev/spec/v1.0/levels) provenance attestation signed with a cosign key-pair. The provenance document and signature bundle are stored as pipeline artifacts.
 
 **Prerequisites:**
 ```bash
-gh extension install github/gh-attestation   # if not already installed
+# Install cosign
+curl -sSfL https://github.com/sigstore/cosign/releases/download/v3.0.5/cosign-linux-amd64 \
+  -o /usr/local/bin/cosign && chmod +x /usr/local/bin/cosign
 ```
 
-**Verify a release artifact:**
+**Verify a provenance bundle:**
 ```bash
-# Download the artifact from the Actions run
-gh run download --repo pkumaschow/cryptotrader --name dist --dir /tmp/ct-dist
-
-# Verify provenance
-gh attestation verify /tmp/ct-dist/cryptotrader-0.1.0.tar.gz --repo pkumaschow/cryptotrader
+# Download provenance.json and provenance.bundle from the pipeline artifacts, then:
+cosign verify-blob \
+  --key cosign.pub \
+  --bundle provenance.bundle \
+  provenance.json
 ```
 
-A successful verification confirms:
-- The artifact was built by the `provenance.yml` workflow in this repository
-- It was built from the `main` branch on GitHub-hosted runners
-- The provenance is recorded in the public [Sigstore Rekor](https://rekor.sigstore.dev) transparency log
+`cosign.pub` is committed to this repository. A successful verification confirms:
+- The provenance was generated by this pipeline
+- It has not been tampered with since signing
+- The signing key corresponds to the public key in `cosign.pub`
 
 ## Inspecting the Database
 
