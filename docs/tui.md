@@ -6,7 +6,22 @@
 python -m cryptotrader.main --tui
 ```
 
-The TUI opens the database read-only when run alongside the service. Live price data comes from its own WebSocket connection to Kraken; stats and trade history are read from the shared SQLite database (WAL mode allows concurrent access).
+`--tui` automatically selects the right mode based on whether the service is already running:
+
+| Situation | Mode | What starts |
+|-----------|------|-------------|
+| No service running | **Full** | Trader + WS + TUI |
+| Service already running | **Monitor** | Read-only WS + DB poller + TUI |
+
+**Full mode** — owns the instance lock, starts its own trader and WebSocket. Trades execute from this process. Use this when running the bot interactively without the systemd service.
+
+**Monitor mode** — detects that the service holds the lock and starts read-only. A separate WebSocket subscription provides live prices; a DB poller queries for new trades every 3 seconds and feeds them into the trade log. No strategies run, no orders are placed. Use this to observe a running service.
+
+```
+# Service running via systemd:
+python -m cryptotrader.main --tui
+# 2026-04-06 09:00:00 INFO __main__ — Service already running — starting in monitor mode (read-only)
+```
 
 If running over SSH, use `tmux` or `screen` to keep the session alive:
 ```bash
@@ -128,29 +143,53 @@ Shows the active timezone and the build timestamp of the installed package.
 
 ## Data Flow
 
+### Full mode
+
 ```
-Kraken WS ──► price_queue ──► PricePanel
-         └──► trade_queue ──► TradeLogPanel (live trades)
-                         └──► SQLite (WAL) ◄─── TradeLogPanel (history on mount)
-                                          ◄─── WeeklySummaryPanel (every 30s)
-                                          ◄─── StatsPanel (every 5s, test only)
-Kraken REST ◄────────────────────────────────── BalancePanel (every 30s, prod only)
+Kraken WS ──► price_queue ──► Trader ──► tui_price_queue ──► PricePanel
+                                    └──► trade_queue ─────► TradeLogPanel (live)
+SQLite (WAL) ◄──────────────────────────────────────────── TradeLogPanel (history)
+             ◄──────────────────────────────────────────── WeeklySummaryPanel (30s)
+             ◄──────────────────────────────────────────── StatsPanel (5s, test only)
+Kraken REST ◄───────────────────────────────────────────── BalancePanel (30s, prod)
 ```
 
-- Price ticks are delivered via an in-memory queue (`maxsize=100`). If the TUI falls behind, ticks are dropped silently to avoid blocking the trading engine.
-- Trade entries arrive via a separate queue, always in sync with what the engine executed.
-- Stats and history are queried directly from SQLite in background threads so the UI never blocks.
+### Monitor mode
+
+```
+Kraken WS ──► price_queue ──────────────────────────────── PricePanel
+DB poller (every 3s) ──► trade_queue ───────────────────── TradeLogPanel (live)
+SQLite (WAL) ◄──────────────────────────────────────────── TradeLogPanel (history)
+             ◄──────────────────────────────────────────── WeeklySummaryPanel (30s)
+             ◄──────────────────────────────────────────── StatsPanel (5s, test only)
+Kraken REST ◄───────────────────────────────────────────── BalancePanel (30s, prod)
+```
+
+- In full mode, price ticks go through the Trader before reaching the TUI so the Trader always gets first access. If the TUI falls behind, ticks are dropped silently from the TUI queue (`maxsize=100`) without blocking the engine.
+- In monitor mode, the price queue feeds the TUI directly (no Trader). New trades appear with up to 3 seconds of latency from when the service executes them.
+- Stats and history panels read directly from SQLite in both modes.
 
 ---
 
 ## Modes
+
+### Trading mode
+
+Set in `config/settings.toml` under `[mode] active`:
 
 | Mode | Behaviour |
 |------|-----------|
 | `test` | All strategies run simultaneously per pair. No real orders. Stats panel visible. Balance panel hidden. |
 | `production` | Single configured strategy per pair. Real orders sent to Kraken. Balance panel visible. Stats panel hidden. |
 
-Mode is set in `config/settings.toml` under `[mode] active`.
+### Launch mode
+
+Detected automatically from the instance lock — no flag needed:
+
+| Launch mode | When | Trader | Orders |
+|-------------|------|--------|--------|
+| Full | No service running | Started | Yes (per trading mode) |
+| Monitor | Service already running | Not started | Never |
 
 ---
 
