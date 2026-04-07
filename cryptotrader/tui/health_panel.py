@@ -1,11 +1,27 @@
 import asyncio
 import time
 
+import aiohttp
 from textual.app import ComposeResult
 from textual.widget import Widget
 from textual.widgets import Label, Static
 
 from cryptotrader.health import _check_database, _check_kraken, _deployed_at, _start_time
+
+_HEALTH_URL = "http://localhost:8080/health"
+
+
+async def _fetch_service_uptime() -> int | None:
+    """Return uptime_seconds from the running service health endpoint, or None on failure."""
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(_HEALTH_URL, timeout=aiohttp.ClientTimeout(total=3)) as resp:
+                if resp.status in (200, 503):
+                    data = await resp.json(content_type=None)
+                    return data.get("uptime_seconds")
+    except Exception:
+        pass
+    return None
 
 
 def _fmt_uptime(seconds: int) -> str:
@@ -59,7 +75,8 @@ class HealthPanel(Widget):
         else:
             kraken_markup = "[red]error[/red]"
 
-        uptime = _fmt_uptime(int(time.monotonic() - _start_time))
+        service_uptime = await _fetch_service_uptime()
+        uptime = _fmt_uptime(service_uptime if service_uptime is not None else int(time.monotonic() - _start_time))
         deployed = _deployed_at()
 
         lines = [
