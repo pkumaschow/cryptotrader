@@ -1,5 +1,7 @@
 # CryptoTrader TUI
 
+![CryptoTrader TUI](tui-screenshot.png)
+
 ## Starting the TUI
 
 ```bash
