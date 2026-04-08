@@ -29,6 +29,12 @@ class CryptoTraderApp(App):
     BINDINGS = [
         Binding("t", "toggle_tz", "Toggle UTC/Local", priority=True),
         Binding("tab", "focus_next", "Switch Panel", show=True),
+        Binding("p", "toggle_panel('price-panel')", "Prices", show=False),
+        Binding("w", "toggle_panel('weekly-summary-panel')", "Weekly", show=False),
+        Binding("b", "toggle_panel('balance-panel')", "Balance", show=False),
+        Binding("h", "toggle_panel('health-panel')", "Health", show=False),
+        Binding("l", "toggle_panel('trade-log-panel')", "Trade Log", show=False),
+        Binding("s", "toggle_panel('stats-panel')", "Stats", show=False),
     ]
 
     CSS = """
@@ -74,10 +80,12 @@ class CryptoTraderApp(App):
         self,
         price_queue: asyncio.Queue[PriceTick],
         trade_queue: asyncio.Queue[Trade],
+        hidden_panels: set[str] | None = None,
     ) -> None:
         super().__init__()
         self._price_queue = price_queue
         self._trade_queue = trade_queue
+        self._hidden = hidden_panels or set()
 
     def compose(self) -> ComposeResult:
         settings = get_settings()
@@ -110,11 +118,21 @@ class CryptoTraderApp(App):
     def action_toggle_tz(self) -> None:
         self.use_utc = not self.use_utc
 
+    def action_toggle_panel(self, panel_id: str) -> None:
+        results = self.query(f"#{panel_id}")
+        if results:
+            widget = results.first()
+            widget.display = not widget.display
+
     def watch_use_utc(self) -> None:
         self.query_one("#tz-indicator", Label).update(self._tz_label())
         self.query_one("#trade-log-panel", TradeLogPanel).re_render()
 
     def on_mount(self) -> None:
+        for panel_id in self._hidden:
+            results = self.query(f"#{panel_id}")
+            if results:
+                results.first().display = False
         self.run_worker(self._consume_prices(), exclusive=False)
         self.run_worker(self._consume_trades(), exclusive=False)
 

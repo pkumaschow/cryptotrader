@@ -30,6 +30,25 @@ python -m cryptotrader.main --tui
 # detach: Ctrl-B D  |  reattach: tmux attach -t trader
 ```
 
+### Panel visibility flags
+
+Individual panels can be hidden at startup. Hidden panels remain in the DOM and can be toggled back on with their keyboard shortcut at any time.
+
+```bash
+python -m cryptotrader.main --tui --hide-weekly --hide-stats
+```
+
+| Flag | Panel hidden |
+|------|-------------|
+| `--hide-prices` | Live Prices |
+| `--hide-weekly` | Past 7 Days |
+| `--hide-balance` | Account Balance |
+| `--hide-health` | Service Health |
+| `--hide-trades` | Trade Log |
+| `--hide-stats` | Test Statistics |
+
+Flags can be combined freely. Hiding a panel that doesn't exist in the current mode (e.g. `--hide-balance` in test mode) is silently ignored.
+
 ---
 
 ## Layout
@@ -121,6 +140,8 @@ Win rate and P&L only appear once at least one BUY+SELL round-trip has completed
 
 ## Key Bindings
 
+### General
+
 | Key | Action |
 |-----|--------|
 | `t` | Toggle timestamps between local timezone and UTC |
@@ -128,6 +149,21 @@ Win rate and P&L only appear once at least one BUY+SELL round-trip has completed
 | `q` / `ctrl-c` | Quit |
 
 Current timezone is shown in the status bar. Switching timezone re-renders the entire trade log.
+
+### Panel toggles
+
+Each panel can be toggled on/off at runtime. Hidden panels retain their state and resume live updates when shown again.
+
+| Key | Panel |
+|-----|-------|
+| `p` | Live Prices |
+| `w` | Past 7 Days |
+| `b` | Account Balance |
+| `h` | Service Health |
+| `l` | Trade Log |
+| `s` | Test Statistics |
+
+Toggling a panel that doesn't exist in the current mode (e.g. `b` in test mode) has no effect. Panel toggles are not shown in the footer — use `--hide-*` flags to set the initial state at startup.
 
 ---
 

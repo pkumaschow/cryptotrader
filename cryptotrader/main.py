@@ -92,7 +92,7 @@ async def _poll_new_trades(trade_queue: asyncio.Queue[Trade], db_path: str) -> N
             pass
 
 
-async def _run_monitor() -> None:
+async def _run_monitor(hidden_panels: set[str]) -> None:
     """Monitor mode: display prices and DB trades without starting a Trader."""
     settings = get_settings()
     pairs = list(settings.currencies.keys())
@@ -107,7 +107,7 @@ async def _run_monitor() -> None:
 
     _tui_terminal_setup()
     from cryptotrader.tui.app import CryptoTraderApp
-    app = CryptoTraderApp(price_queue, trade_queue)
+    app = CryptoTraderApp(price_queue, trade_queue, hidden_panels=hidden_panels)
     try:
         await app.run_async(mouse=False)
     finally:
@@ -116,7 +116,7 @@ async def _run_monitor() -> None:
         poller_task.cancel()
 
 
-async def _run(tui: bool) -> None:
+async def _run(tui: bool, hidden_panels: set[str]) -> None:
     settings = get_settings()
     database.init_db(settings.database.path)
 
@@ -139,7 +139,7 @@ async def _run(tui: bool) -> None:
     if tui:
         _tui_terminal_setup()
         from cryptotrader.tui.app import CryptoTraderApp
-        app = CryptoTraderApp(tui_price_queue, trade_queue)
+        app = CryptoTraderApp(tui_price_queue, trade_queue, hidden_panels=hidden_panels)
         try:
             await app.run_async(mouse=False)
         finally:
@@ -157,8 +157,28 @@ async def _run(tui: bool) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="CryptoTrader")
     parser.add_argument("--tui", action="store_true", help="Launch interactive TUI")
+    parser.add_argument("--hide-prices", action="store_true", help="Hide live prices panel")
+    parser.add_argument("--hide-weekly", action="store_true", help="Hide weekly summary panel")
+    parser.add_argument("--hide-balance", action="store_true", help="Hide balance panel")
+    parser.add_argument("--hide-health", action="store_true", help="Hide health panel")
+    parser.add_argument("--hide-trades", action="store_true", help="Hide trade log panel")
+    parser.add_argument("--hide-stats", action="store_true", help="Hide stats panel")
     args = parser.parse_args()
     _configure_logging(tui=args.tui)
+
+    hidden_panels: set[str] = set()
+    if args.hide_prices:
+        hidden_panels.add("price-panel")
+    if args.hide_weekly:
+        hidden_panels.add("weekly-summary-panel")
+    if args.hide_balance:
+        hidden_panels.add("balance-panel")
+    if args.hide_health:
+        hidden_panels.add("health-panel")
+    if args.hide_trades:
+        hidden_panels.add("trade-log-panel")
+    if args.hide_stats:
+        hidden_panels.add("stats-panel")
 
     settings = get_settings()
     lock_acquired = _acquire_instance_lock(settings.database.path)
@@ -167,7 +187,7 @@ def main() -> None:
         if args.tui:
             logger.info("Service already running — starting in monitor mode (read-only)")
             try:
-                asyncio.run(_run_monitor())
+                asyncio.run(_run_monitor(hidden_panels))
             except KeyboardInterrupt:
                 pass
             return
@@ -177,7 +197,7 @@ def main() -> None:
         )
 
     try:
-        asyncio.run(_run(tui=args.tui))
+        asyncio.run(_run(tui=args.tui, hidden_panels=hidden_panels))
     except KeyboardInterrupt:
         logger.info("Shutting down.")
 
