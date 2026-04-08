@@ -1,5 +1,8 @@
 .env
 *.db
+*.db-shm
+*.db-wal
+*.lock
 __pycache__/
 *.pyc
 *.pyo
