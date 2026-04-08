@@ -30,6 +30,16 @@ python -m cryptotrader.main --tui
 # detach: Ctrl-B D  |  reattach: tmux attach -t trader
 ```
 
+To display the TUI on a directly connected monitor (e.g. on the Pi itself), launch it on a virtual terminal via `openvt`:
+```bash
+sudo openvt -c 1 -f -s -- tmux new-session -s cryptotrader 'cd /opt/cryptotrader && venv/bin/python -m cryptotrader.main --tui --hide-stats'
+```
+
+`-c 1` targets tty1, `-f` forces use of the VT even if in use, `-s` switches the display to it. The tmux session can still be attached from SSH:
+```bash
+tmux attach -t cryptotrader
+```
+
 ### Panel visibility flags
 
 Individual panels can be hidden at startup. Hidden panels remain in the DOM and can be toggled back on with their keyboard shortcut at any time.
