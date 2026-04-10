@@ -1,0 +1,33 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Pi
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: http://pihole.homelab.com
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up SSH
+        run: |
+          eval $(ssh-agent -s)
+          echo "${{ secrets.PI_SSH_PRIVATE_KEY }}" | base64 -d > /tmp/pi_key
+          chmod 600 /tmp/pi_key
+          ssh-add /tmp/pi_key
+          rm /tmp/pi_key
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.PI_HOST }}" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> $GITHUB_ENV
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> $GITHUB_ENV
+      - name: Install rsync
+        run: sudo apt-get install -y rsync
+      - name: Deploy
+        env:
+          PI_HOST: ${{ secrets.PI_HOST }}
+          PI_USER: ${{ secrets.PI_USER }}
+        run: bash deploy/deploy.sh
