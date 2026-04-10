@@ -23,6 +23,6 @@ You can expect an acknowledgement within **72 hours** and a resolution or status
 
 ## Supply Chain Security
 
-Every push generates a [SLSA Level 3](https://slsa.dev/spec/v1.0/levels) provenance attestation signed with a cosign key-pair. See [README.md](README.md#supply-chain-security) for verification instructions.
+Every push generates a [SLSA Level 2](https://slsa.dev/spec/v1.0/levels) provenance attestation signed with a cosign key-pair. See [README.md](README.md#supply-chain-security) for verification instructions.
 
 The Docker image is built and pushed to the GitLab container registry on every push to `main`.
