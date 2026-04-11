@@ -14,9 +14,9 @@ import fcntl
 import logging
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-from cryptotrader.config import get_settings
+from cryptotrader.config import get_secrets, get_settings
 from cryptotrader.db import database
 from cryptotrader.exchange.kraken_ws import KrakenWebSocket
 from cryptotrader.health import run as run_health
@@ -75,7 +75,7 @@ def _tui_terminal_setup() -> None:
 async def _poll_new_trades(trade_queue: asyncio.Queue[Trade], db_path: str) -> None:
     """Push trades written by the running service into the TUI trade queue."""
     # Seed cursor so we only pick up trades that arrive after monitor starts.
-    last_ts: datetime = datetime.now(timezone.utc)
+    last_ts: datetime = datetime.now(UTC)
     while True:
         await asyncio.sleep(3)
         try:
@@ -88,7 +88,7 @@ async def _poll_new_trades(trade_queue: asyncio.Queue[Trade], db_path: str) -> N
                     trade_queue.put_nowait(trade)
                 except asyncio.QueueFull:
                     pass
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
 
@@ -181,6 +181,14 @@ def main() -> None:
         hidden_panels.add("stats-panel")
 
     settings = get_settings()
+
+    if settings.mode.active == "production":
+        secrets = get_secrets()
+        if not secrets.kraken_api_key or not secrets.kraken_api_secret:
+            raise RuntimeError(
+                "KRAKEN_API_KEY and KRAKEN_API_SECRET must be set before running in production mode"
+            )
+
     lock_acquired = _acquire_instance_lock(settings.database.path)
 
     if not lock_acquired:

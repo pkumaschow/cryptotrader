@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Generator, Optional
 
 from cryptotrader.models import Candle, Deposit, Side, Trade
 
@@ -91,7 +91,8 @@ def insert_trade(path: str, trade: Trade) -> int:
         with _connect(path) as conn:
             cursor = conn.execute(
                 """
-                INSERT INTO trades (pair, side, price, quantity, timestamp, mode, strategy, pnl, txid, band_width)
+                INSERT INTO trades
+                    (pair, side, price, quantity, timestamp, mode, strategy, pnl, txid, band_width)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (trade.pair, trade.side.value, trade.price, trade.quantity,
@@ -148,8 +149,8 @@ def insert_deposit(path: str, deposit: Deposit) -> int:
 
 def query_deposits(
     path: str,
-    since: Optional[datetime] = None,
-    until: Optional[datetime] = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
     read_only: bool = False,
 ) -> list[Deposit]:
     conditions: list[str] = []
@@ -161,7 +162,7 @@ def query_deposits(
         conditions.append("timestamp <= ?")
         params.append(until.isoformat())
     where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-    sql = f"SELECT * FROM deposits {where} ORDER BY timestamp ASC"
+    sql = f"SELECT * FROM deposits {where} ORDER BY timestamp ASC"  # noqa: S608
     with _connect(path, read_only=read_only) as conn:
         rows = conn.execute(sql, params).fetchall()
     return [
@@ -180,11 +181,11 @@ def query_deposits(
 
 def query_trades(
     path: str,
-    pair: Optional[str] = None,
-    mode: Optional[str] = None,
-    strategy: Optional[str] = None,
-    since: Optional[datetime] = None,
-    until: Optional[datetime] = None,
+    pair: str | None = None,
+    mode: str | None = None,
+    strategy: str | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
     read_only: bool = False,
 ) -> list[Trade]:
     conditions: list[str] = []
@@ -205,7 +206,7 @@ def query_trades(
         conditions.append("timestamp <= ?")
         params.append(until.isoformat())
     where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-    sql = f"SELECT * FROM trades {where} ORDER BY timestamp ASC"
+    sql = f"SELECT * FROM trades {where} ORDER BY timestamp ASC"  # noqa: S608
     with _connect(path, read_only=read_only) as conn:
         rows = conn.execute(sql, params).fetchall()
     return [

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from cryptotrader.config import BollingerParams, CurrencyConfig
 from cryptotrader.models import PriceTick, Signal
@@ -6,7 +6,7 @@ from cryptotrader.strategy.bollinger import BollingerStrategy
 
 
 def make_tick(price: float, hour: int, minute: int = 0) -> PriceTick:
-    ts = datetime(2024, 1, 1, hour, minute, 0, tzinfo=timezone.utc)
+    ts = datetime(2024, 1, 1, hour, minute, 0, tzinfo=UTC)
     return PriceTick(pair="BTC/USD", bid=price, ask=price, last=price, timestamp=ts)
 
 

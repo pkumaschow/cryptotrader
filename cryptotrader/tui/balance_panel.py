@@ -4,7 +4,6 @@ from textual.app import ComposeResult
 from textual.widget import Widget
 from textual.widgets import Label, Static
 
-
 # Kraken balance keys → display labels
 _DISPLAY = {
     "ZUSD": "USD",

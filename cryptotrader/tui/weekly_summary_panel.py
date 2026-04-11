@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from textual.app import ComposeResult
 from textual.widget import Widget
@@ -38,7 +38,7 @@ class WeeklySummaryPanel(Widget):
     async def refresh_summary(self) -> None:
         def _query() -> list[tuple[str, int, int]]:
             settings = get_settings()
-            since = datetime.now(timezone.utc) - timedelta(days=7)
+            since = datetime.now(UTC) - timedelta(days=7)
             trades = database.query_trades(
                 settings.database.path, since=since, read_only=True
             )

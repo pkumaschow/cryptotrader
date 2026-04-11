@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional
+
 from cryptotrader.candles import CandleBuilder
 from cryptotrader.config import CurrencyConfig
 from cryptotrader.db import database
@@ -20,7 +20,7 @@ class TrendPullbackStrategy(Strategy):
         self._candles_1h = CandleBuilder(timeframe_minutes=60)
         self._candles_4h = CandleBuilder(timeframe_minutes=240)
         self._in_position = False
-        self._db_path: Optional[str] = None
+        self._db_path: str | None = None
 
     def restore(self, db_path: str, pair: str) -> None:
         self._db_path = db_path
@@ -34,7 +34,7 @@ class TrendPullbackStrategy(Strategy):
         if trades and trades[-1].side == Side.BUY:
             self._in_position = True
 
-    def evaluate(self, tick: PriceTick) -> Optional[Signal]:
+    def evaluate(self, tick: PriceTick) -> Signal | None:
         completed_1h = self._candles_1h.add_tick(tick)
         completed_4h = self._candles_4h.add_tick(tick)
         if completed_1h is not None and self._db_path is not None:

@@ -1,15 +1,14 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from enum import Enum
-from typing import Optional
+from datetime import UTC, datetime
+from enum import StrEnum
 
 
-class Side(str, Enum):
+class Side(StrEnum):
     BUY = "buy"
     SELL = "sell"
 
 
-class Signal(str, Enum):
+class Signal(StrEnum):
     BUY = "buy"
     SELL = "sell"
 
@@ -20,7 +19,7 @@ class PriceTick:
     bid: float
     ask: float
     last: float
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -43,11 +42,11 @@ class Trade:
     quantity: float
     mode: str
     strategy: str = "unknown"
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    pnl: Optional[float] = None
-    txid: Optional[str] = None
-    band_width: Optional[float] = None
-    id: Optional[int] = None
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+    pnl: float | None = None
+    txid: str | None = None
+    band_width: float | None = None
+    id: int | None = None
 
 
 @dataclass
@@ -55,10 +54,10 @@ class Deposit:
     aud_amount: float
     usd_amount: float
     fee_usd: float = 0.0
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    notes: Optional[str] = None
-    rate_mid: Optional[float] = None
-    id: Optional[int] = None
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+    notes: str | None = None
+    rate_mid: float | None = None
+    id: int | None = None
 
 
 @dataclass
@@ -70,5 +69,5 @@ class StatsResult:
     avg_loss: float
     buys: int = 0
     sells: int = 0
-    pair: Optional[str] = None
-    strategy: Optional[str] = None
+    pair: str | None = None
+    strategy: str | None = None

@@ -1,8 +1,9 @@
 from __future__ import annotations
+
 import asyncio
 import logging
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
+
 from cryptotrader.config import get_secrets, get_settings
 from cryptotrader.db import database
 from cryptotrader.models import Side, Signal, Trade
@@ -28,9 +29,9 @@ def _quote_balance_key(pair: str) -> str:
 
 
 class TradeExecutor:
-    def __init__(self, tui_queue: Optional[asyncio.Queue] = None) -> None:
+    def __init__(self, tui_queue: asyncio.Queue | None = None) -> None:
         self._tui_queue = tui_queue
-        self._rest_client: Optional[object] = None
+        self._rest_client: object | None = None
 
     def set_rest_client(self, client: object) -> None:
         self._rest_client = client
@@ -59,7 +60,7 @@ class TradeExecutor:
 
     async def execute(self, signal: Signal, pair: str, price: float,
                       strategy: str = "unknown",
-                      band_width: Optional[float] = None) -> Optional[Trade]:
+                      band_width: float | None = None) -> Trade | None:
         settings = get_settings()
         mode = settings.mode.active
         currency_cfg = settings.currencies[pair]
@@ -80,7 +81,7 @@ class TradeExecutor:
 
         trade = Trade(pair=pair, side=side, price=price,
                       quantity=quantity, mode=mode, strategy=strategy,
-                      timestamp=datetime.now(timezone.utc), band_width=band_width)
+                      timestamp=datetime.now(UTC), band_width=band_width)
 
         if mode == "test":
             trade.id = database.insert_trade(settings.database.path, trade)

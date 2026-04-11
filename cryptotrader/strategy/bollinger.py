@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional
+
 from cryptotrader.candles import CandleBuilder
 from cryptotrader.config import CurrencyConfig
 from cryptotrader.db import database
@@ -19,8 +19,8 @@ class BollingerStrategy(Strategy):
         self._std_dev = p.std_dev
         self._candles = CandleBuilder(timeframe_minutes=60)
         self._in_position = False
-        self._db_path: Optional[str] = None
-        self.last_band_width: Optional[float] = None
+        self._db_path: str | None = None
+        self.last_band_width: float | None = None
 
     def restore(self, db_path: str, pair: str) -> None:
         self._db_path = db_path
@@ -31,7 +31,7 @@ class BollingerStrategy(Strategy):
         if trades and trades[-1].side == Side.BUY:
             self._in_position = True
 
-    def evaluate(self, tick: PriceTick) -> Optional[Signal]:
+    def evaluate(self, tick: PriceTick) -> Signal | None:
         completed = self._candles.add_tick(tick)
         if completed is not None and self._db_path is not None:
             database.insert_candle(self._db_path, completed)

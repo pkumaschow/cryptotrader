@@ -19,7 +19,7 @@ async def _fetch_service_uptime() -> int | None:
                 if resp.status in (200, 503):
                     data = await resp.json(content_type=None)
                     return data.get("uptime_seconds")
-    except Exception:
+    except Exception:  # noqa: S110
         pass
     return None
 
@@ -76,7 +76,8 @@ class HealthPanel(Widget):
             kraken_markup = "[red]error[/red]"
 
         service_uptime = await _fetch_service_uptime()
-        uptime = _fmt_uptime(service_uptime if service_uptime is not None else int(time.monotonic() - _start_time))
+        elapsed = int(time.monotonic() - _start_time)
+        uptime = _fmt_uptime(service_uptime if service_uptime is not None else elapsed)
         deployed = _deployed_at()
 
         lines = [

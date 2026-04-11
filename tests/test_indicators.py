@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -6,13 +6,13 @@ from cryptotrader.models import Candle
 from cryptotrader.strategy._indicators import atr, bollinger_bands, ema
 
 
-def make_candle(close: float, high: float = None, low: float = None) -> Candle:
+def make_candle(close: float, high: float | None = None, low: float | None = None) -> Candle:
     h = high if high is not None else close
     lo = low if low is not None else close
     return Candle(
         pair="BTC/USD", timeframe=60,
         open=close, high=h, low=lo, close=close,
-        tick_count=1, timestamp=datetime.now(timezone.utc),
+        tick_count=1, timestamp=datetime.now(UTC),
     )
 
 
@@ -57,7 +57,7 @@ def test_atr_flat_prices_zero():
 def test_atr_with_range():
     # high=60, low=40, close=50 → TR = max(20, |60-50|, |40-50|) = 20
     candles = [
-        Candle("BTC/USD", 60, 50.0, 60.0, 40.0, 50.0, 1, datetime.now(timezone.utc))
+        Candle("BTC/USD", 60, 50.0, 60.0, 40.0, 50.0, 1, datetime.now(UTC))
     ] * 10
     assert atr(candles, period=5) == pytest.approx(20.0)
 
@@ -87,4 +87,6 @@ def test_bollinger_uses_last_period_values():
     # Adding old values should not change result if window is the same
     values_a = [50.0] * 3
     values_b = [999.0] * 100 + [50.0] * 3
-    assert bollinger_bands(values_a, period=3, std_dev=2.0) == bollinger_bands(values_b, period=3, std_dev=2.0)
+    result_a = bollinger_bands(values_a, period=3, std_dev=2.0)
+    result_b = bollinger_bands(values_b, period=3, std_dev=2.0)
+    assert result_a == result_b

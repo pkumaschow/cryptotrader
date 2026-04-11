@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
@@ -12,7 +12,7 @@ from cryptotrader.models import Side, Trade
 def insert(db_path: str, pair: str, side: Side, price: float, qty: float = 0.001) -> None:
     database.insert_trade(db_path, Trade(
         pair=pair, side=side, price=price, quantity=qty,
-        mode="test", timestamp=datetime.now(timezone.utc)
+        mode="test", timestamp=datetime.now(UTC)
     ))
 
 
@@ -86,15 +86,15 @@ def test_all_strategies_returns_sorted_unique(test_config_path, tmp_path):
     database.init_db(db_path)
     database.insert_trade(db_path, Trade(
         pair="BTC/USD", side=Side.BUY, price=50000, quantity=0.001,
-        mode="test", strategy="ema", timestamp=datetime.now(timezone.utc)
+        mode="test", strategy="ema", timestamp=datetime.now(UTC)
     ))
     database.insert_trade(db_path, Trade(
         pair="BTC/USD", side=Side.BUY, price=50000, quantity=0.001,
-        mode="test", strategy="bollinger", timestamp=datetime.now(timezone.utc)
+        mode="test", strategy="bollinger", timestamp=datetime.now(UTC)
     ))
     database.insert_trade(db_path, Trade(
         pair="BTC/USD", side=Side.BUY, price=50000, quantity=0.001,
-        mode="test", strategy="ema", timestamp=datetime.now(timezone.utc)
+        mode="test", strategy="ema", timestamp=datetime.now(UTC)
     ))
 
     with patch("cryptotrader.statistics.get_settings") as ms:

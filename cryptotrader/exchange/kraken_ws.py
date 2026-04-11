@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import websockets
 from websockets.exceptions import ConnectionClosed, InvalidStatus
@@ -86,7 +86,7 @@ class KrakenWebSocket:
                 finally:
                     self._receive_task = None
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning("WS connect timed out after 15s — will retry")
             except ConnectionClosed as exc:
                 logger.warning("WS connection closed: %s", exc)
@@ -103,7 +103,7 @@ class KrakenWebSocket:
                 if ws is not None:
                     try:
                         await asyncio.wait_for(ws.close(), timeout=3)
-                    except Exception:
+                    except Exception:  # noqa: S110
                         pass
 
             if not self._running:
@@ -144,7 +144,7 @@ class KrakenWebSocket:
                     bid=float(item["bid"]),
                     ask=float(item["ask"]),
                     last=float(item["last"]),
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                 )
                 self._last_tick_time = asyncio.get_event_loop().time()
                 self._backoff_attempt = 0  # reset backoff only after a real tick arrives

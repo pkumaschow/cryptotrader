@@ -1,15 +1,16 @@
 from __future__ import annotations
+
 from datetime import datetime
-from typing import Optional
+
 from cryptotrader.config import get_settings
 from cryptotrader.db import database
 from cryptotrader.models import Side, StatsResult, Trade
 
 
-def compute(pair: Optional[str] = None, mode: str = "test",
-            strategy: Optional[str] = None,
-            since: Optional[datetime] = None,
-            until: Optional[datetime] = None) -> StatsResult:
+def compute(pair: str | None = None, mode: str = "test",
+            strategy: str | None = None,
+            since: datetime | None = None,
+            until: datetime | None = None) -> StatsResult:
     settings = get_settings()
     trades = database.query_trades(
         settings.database.path, pair=pair, mode=mode,

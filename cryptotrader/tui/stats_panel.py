@@ -3,6 +3,7 @@ import asyncio
 from textual.app import ComposeResult
 from textual.widget import Widget
 from textual.widgets import Label, Static
+
 from cryptotrader import statistics
 from cryptotrader.strategy.registry import _REGISTRY
 

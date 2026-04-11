@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from textual.app import ComposeResult
 from textual.widget import Widget
@@ -13,8 +13,9 @@ _HISTORY_LIMIT = 100
 
 def _fmt_ts(ts: datetime, use_utc: bool) -> str:
     if ts.tzinfo is None:
-        ts = ts.replace(tzinfo=timezone.utc)
-    return ts.strftime("%Y-%m-%d %H:%M:%S") if use_utc else ts.astimezone().strftime("%Y-%m-%d %H:%M:%S")
+        ts = ts.replace(tzinfo=UTC)
+    fmt = "%Y-%m-%d %H:%M:%S"
+    return ts.strftime(fmt) if use_utc else ts.astimezone().strftime(fmt)
 
 
 def _render_trade(trade: Trade, use_utc: bool) -> str:

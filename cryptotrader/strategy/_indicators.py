@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from cryptotrader.models import Candle
 
 
@@ -25,7 +26,9 @@ def atr(candles: list[Candle], period: int) -> float | None:
     return sum(recent) / len(recent)
 
 
-def bollinger_bands(values: list[float], period: int, std_dev: float) -> tuple[float, float, float] | None:
+def bollinger_bands(
+    values: list[float], period: int, std_dev: float
+) -> tuple[float, float, float] | None:
     if len(values) < period:
         return None
     window = values[-period:]

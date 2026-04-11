@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from cryptotrader.config import CurrencyConfig, EMAParams
 from cryptotrader.models import PriceTick, Signal
@@ -6,14 +6,18 @@ from cryptotrader.strategy.ema import EMAStrategy
 
 
 def make_tick(price: float, hour: int) -> PriceTick:
-    ts = datetime(2024, 1, 1, hour, 0, 0, tzinfo=timezone.utc)
+    ts = datetime(2024, 1, 1, hour, 0, 0, tzinfo=UTC)
     return PriceTick(pair="BTC/USD", bid=price, ask=price, last=price, timestamp=ts)
 
 
-def make_cfg(fast: int = 3, slow: int = 5, atr_period: int = 3, atr_min_pct: float = 0.0) -> CurrencyConfig:
+def make_cfg(
+    fast: int = 3, slow: int = 5, atr_period: int = 3, atr_min_pct: float = 0.0
+) -> CurrencyConfig:
     return CurrencyConfig(
         quantity=0.001,
-        ema=EMAParams(fast_period=fast, slow_period=slow, atr_period=atr_period, atr_min_pct=atr_min_pct),
+        ema=EMAParams(
+            fast_period=fast, slow_period=slow, atr_period=atr_period, atr_min_pct=atr_min_pct
+        ),
     )
 
 

@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
@@ -12,7 +12,7 @@ from cryptotrader.trader import Trader
 
 def make_tick(pair: str = "BTC/USD", price: float = 50000.0) -> PriceTick:
     return PriceTick(pair=pair, bid=price, ask=price, last=price,
-                     timestamp=datetime.now(timezone.utc))
+                     timestamp=datetime.now(UTC))
 
 
 async def _run_one_tick(trader: Trader, tick: PriceTick) -> None:

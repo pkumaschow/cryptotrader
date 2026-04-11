@@ -12,7 +12,7 @@ import logging
 import os
 import sqlite3
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import aiohttp
 from aiohttp import web
@@ -26,7 +26,7 @@ def _deployed_at() -> str:
     try:
         import cryptotrader
         ts = os.path.getmtime(cryptotrader.__file__)
-        return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return datetime.fromtimestamp(ts, tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     except Exception:
         return "unknown"
 
@@ -88,7 +88,7 @@ async def run(port: int = 8080) -> None:
     app.router.add_get("/health", _handle_health)
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", port)
+    site = web.TCPSite(runner, "0.0.0.0", port)  # noqa: S104
     await site.start()
     logger.info("Health check server listening on :%d/health", port)
     try:

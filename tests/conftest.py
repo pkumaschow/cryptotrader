@@ -1,6 +1,6 @@
 import pytest
 
-from cryptotrader.config import get_settings, get_secrets
+from cryptotrader.config import get_secrets, get_settings
 from cryptotrader.db import database
 
 

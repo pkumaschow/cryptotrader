@@ -1,11 +1,11 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from cryptotrader.candles import CandleBuilder
 from cryptotrader.models import PriceTick
 
 
 def make_tick(price: float, hour: int, minute: int = 0) -> PriceTick:
-    ts = datetime(2024, 1, 1, hour, minute, 0, tzinfo=timezone.utc)
+    ts = datetime(2024, 1, 1, hour, minute, 0, tzinfo=UTC)
     return PriceTick(pair="BTC/USD", bid=price, ask=price, last=price, timestamp=ts)
 
 

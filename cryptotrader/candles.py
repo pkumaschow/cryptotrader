@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from cryptotrader.models import Candle, PriceTick
 
 

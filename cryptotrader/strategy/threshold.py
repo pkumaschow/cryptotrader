@@ -1,4 +1,4 @@
-from typing import Optional
+
 from cryptotrader.config import CurrencyConfig
 from cryptotrader.models import PriceTick, Signal
 from cryptotrader.strategy.base import Strategy
@@ -14,7 +14,7 @@ class ThresholdStrategy(Strategy):
         self._sell_trigger = config.threshold.sell_trigger
         self._in_position = False
 
-    def evaluate(self, tick: PriceTick) -> Optional[Signal]:
+    def evaluate(self, tick: PriceTick) -> Signal | None:
         if not self._in_position and tick.ask <= self._buy_trigger:
             self._in_position = True
             return Signal.BUY

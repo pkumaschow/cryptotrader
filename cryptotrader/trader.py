@@ -1,7 +1,8 @@
 from __future__ import annotations
+
 import asyncio
 import logging
-from typing import Optional
+
 from cryptotrader.config import get_settings
 from cryptotrader.executor import TradeExecutor
 from cryptotrader.models import PriceTick
@@ -13,8 +14,8 @@ logger = logging.getLogger(__name__)
 
 class Trader:
     def __init__(self, price_queue: asyncio.Queue[PriceTick],
-                 tui_price_queue: Optional[asyncio.Queue] = None,
-                 tui_trade_queue: Optional[asyncio.Queue] = None) -> None:
+                 tui_price_queue: asyncio.Queue | None = None,
+                 tui_trade_queue: asyncio.Queue | None = None) -> None:
         self._price_queue = price_queue
         self._tui_price_queue = tui_price_queue
         self._executor = TradeExecutor(tui_queue=tui_trade_queue)
