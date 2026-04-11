@@ -36,6 +36,8 @@ class CurrencyConfig(BaseModel):
     quantity: float
     # Production only: spend this USD amount per buy (overrides quantity)
     budget_usd: float | None = None
+    # Production only: hard cap — refuse to place any order exceeding this USD value
+    max_order_usd: float | None = None
     threshold: ThresholdParams = ThresholdParams()
     ema: EMAParams = EMAParams()
     bollinger: BollingerParams = BollingerParams()

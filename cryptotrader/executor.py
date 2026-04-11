@@ -76,6 +76,13 @@ class TradeExecutor:
                 quantity = currency_cfg.budget_usd / price
 
             cost = quantity * price
+
+            if currency_cfg.max_order_usd is not None and cost > currency_cfg.max_order_usd:
+                raise RuntimeError(
+                    f"Order value ${cost:.2f} exceeds max_order_usd=${currency_cfg.max_order_usd}"
+                    f" for {pair} — refusing to place order"
+                )
+
             if not await self._check_balance(pair, cost):
                 return None
 
