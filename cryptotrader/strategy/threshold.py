@@ -1,6 +1,7 @@
 
 from cryptotrader.config import CurrencyConfig
-from cryptotrader.models import PriceTick, Signal
+from cryptotrader.db import database
+from cryptotrader.models import PriceTick, Side, Signal
 from cryptotrader.strategy.base import Strategy
 
 
@@ -13,6 +14,11 @@ class ThresholdStrategy(Strategy):
         self._buy_trigger = config.threshold.buy_trigger
         self._sell_trigger = config.threshold.sell_trigger
         self._in_position = False
+
+    def restore(self, db_path: str, pair: str) -> None:
+        trades = database.query_trades(db_path, pair=pair, strategy=self.name)
+        if trades and trades[-1].side == Side.BUY:
+            self._in_position = True
 
     def evaluate(self, tick: PriceTick) -> Signal | None:
         if not self._in_position and tick.ask <= self._buy_trigger:
