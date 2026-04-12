@@ -3,7 +3,7 @@ from unittest.mock import patch
 import pytest
 from pydantic import ValidationError
 
-from cryptotrader.config import KrakenSecrets, ModeConfig, get_settings
+from cryptotrader.config import CurrencyConfig, KrakenSecrets, ModeConfig, get_settings
 
 
 def test_load_settings(test_config_path):
@@ -19,6 +19,22 @@ def test_currency_config(test_config_path):
     assert btc.threshold.buy_trigger == 50000.0
     assert btc.threshold.sell_trigger == 60000.0
     assert btc.quantity == 0.001
+
+
+@pytest.mark.parametrize("qty", [0, -0.001, -1.0])
+def test_quantity_non_positive_raises(qty):
+    with pytest.raises(ValidationError):
+        CurrencyConfig(quantity=qty)
+
+
+def test_quantity_over_cap_raises():
+    with pytest.raises(ValidationError):
+        CurrencyConfig(quantity=10.1)
+
+
+def test_quantity_valid_boundaries():
+    assert CurrencyConfig(quantity=0.001).quantity == 0.001
+    assert CurrencyConfig(quantity=10.0).quantity == 10.0
 
 
 def test_invalid_mode_raises():
