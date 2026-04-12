@@ -17,5 +17,14 @@ StandardError=journal
 KillSignal=SIGTERM
 TimeoutStopSec=30
 
+# Hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/opt/cryptotrader
+RestrictAddressFamilies=AF_INET AF_INET6
+CapabilityBoundingSet=
+
 [Install]
 WantedBy=multi-user.target

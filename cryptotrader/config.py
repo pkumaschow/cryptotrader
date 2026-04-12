@@ -5,7 +5,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -33,7 +33,7 @@ class TrendPullbackParams(BaseModel):
 
 class CurrencyConfig(BaseModel):
     strategy: str = "ema"
-    quantity: float
+    quantity: float = Field(gt=0, le=10.0)
     # Production only: spend this USD amount per buy (overrides quantity)
     budget_usd: float | None = None
     # Production only: hard cap — refuse to place any order exceeding this USD value
