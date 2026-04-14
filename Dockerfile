@@ -1,4 +1,4 @@
-FROM python:3.13-slim
+FROM python:3.14-slim
 
 # Upgrade OS packages to apply all Debian security patches
 RUN apt-get update -qq && \
