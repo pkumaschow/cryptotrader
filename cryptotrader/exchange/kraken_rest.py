@@ -49,6 +49,20 @@ class KrakenRest:
         self._api_secret = api_secret
         self._bucket = _TokenBucket()
         self._session: aiohttp.ClientSession | None = None
+        self._last_nonce: int = 0
+
+    def _nonce(self) -> int:
+        """Return a strictly increasing nonce robust to NTP clock adjustments.
+
+        Uses microsecond precision so the counter stays ahead of the millisecond
+        nonces produced before this change.  If the wall clock ever steps backward
+        (NTP resync), the in-process high-water mark ensures the value still
+        increases, preventing Kraken EAPI:Invalid nonce rejections.
+        """
+        candidate = int(time.time() * 1_000_000)
+        nonce = max(candidate, self._last_nonce + 1)
+        self._last_nonce = nonce
+        return nonce
 
     async def _session_get(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
@@ -69,7 +83,7 @@ class KrakenRest:
     async def _post(self, endpoint: str, data: dict[str, Any]) -> dict[str, Any]:
         await self._bucket.acquire()
         uri_path = f"/0/private/{endpoint}"
-        data["nonce"] = str(int(time.time() * 1000))
+        data["nonce"] = str(self._nonce())
         signature = self._sign(uri_path, data)
         headers = {
             "API-Key": self._api_key,
