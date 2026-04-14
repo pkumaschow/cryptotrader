@@ -121,7 +121,7 @@ async def _run(tui: bool, hidden_panels: set[str]) -> None:
     database.init_db(settings.database.path)
 
     pairs = list(settings.currencies.keys())
-    logger.info("Starting CryptoTrader | mode=%s | pairs=%s", settings.mode.active, pairs)
+    logger.debug("Starting CryptoTrader | mode=%s | pairs=%s", settings.mode.active, pairs)
 
     price_queue: asyncio.Queue[PriceTick] = asyncio.Queue(maxsize=100)
     trade_queue: asyncio.Queue[Trade] = asyncio.Queue(maxsize=100)
