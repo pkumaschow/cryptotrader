@@ -2,6 +2,7 @@
 # "test"       — paper trading, runs ALL 4 strategies simultaneously for comparison
 # "production" — live trading using only the configured strategy per pair
 active = "test"
+# max_daily_loss_usd = 50.00  # Circuit breaker: halt all trades once cumulative daily loss exceeds this amount
 
 [database]
 path = "cryptotrader.db"

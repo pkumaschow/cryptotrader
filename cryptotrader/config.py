@@ -47,6 +47,7 @@ class CurrencyConfig(BaseModel):
 
 class ModeConfig(BaseModel):
     active: str
+    max_daily_loss_usd: float | None = None
 
     @field_validator("active")
     @classmethod
