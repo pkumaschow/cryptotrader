@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from cryptotrader.config import get_settings
 from cryptotrader.db import database
@@ -45,6 +45,12 @@ def compute(pair: str | None = None, mode: str = "test",
         buys=buys, sells=sells,
         pair=pair, strategy=strategy,
     )
+
+
+def daily_pnl(mode: str = "test") -> float:
+    """Return realized P&L for completed round-trips since UTC midnight today."""
+    today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    return compute(mode=mode, since=today_start).total_pnl
 
 
 def all_strategies(mode: str = "test") -> list[str]:

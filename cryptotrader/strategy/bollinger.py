@@ -17,6 +17,7 @@ class BollingerStrategy(Strategy):
         p = config.bollinger
         self._period = p.period
         self._std_dev = p.std_dev
+        self._min_bw_pct = p.min_band_width_pct
         self._candles = CandleBuilder(timeframe_minutes=60)
         self._in_position = False
         self._db_path: str | None = None
@@ -49,9 +50,14 @@ class BollingerStrategy(Strategy):
         prev_upper, _, prev_lower = prev
         curr_width = curr_upper - curr_lower
         prev_width = prev_upper - prev_lower
+        curr_bw_pct = curr_width / curr_mid * 100 if self._min_bw_pct else 0.0
         last_close = candles[-1].close
         if not self._in_position:
-            if last_close > curr_upper and curr_width > prev_width:
+            if (
+                last_close > curr_upper
+                and curr_width > prev_width
+                and curr_bw_pct >= self._min_bw_pct
+            ):
                 self._in_position = True
                 self.last_band_width = round(curr_width, 4)
                 return Signal.BUY

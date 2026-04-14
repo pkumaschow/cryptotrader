@@ -86,6 +86,17 @@ class TradeExecutor:
             if not await self._check_balance(pair, cost):
                 return None
 
+        if settings.mode.max_daily_loss_usd is not None:
+            from cryptotrader.statistics import daily_pnl
+            pnl_today = daily_pnl(mode=mode)
+            if pnl_today <= -settings.mode.max_daily_loss_usd:
+                logger.warning(
+                    "Daily loss limit breached ($%.2f lost today, limit=$%.2f) "
+                    "— halting all trades for the rest of the day",
+                    -pnl_today, settings.mode.max_daily_loss_usd,
+                )
+                return None
+
         trade = Trade(pair=pair, side=side, price=price,
                       quantity=quantity, mode=mode, strategy=strategy,
                       timestamp=datetime.now(UTC), band_width=band_width)

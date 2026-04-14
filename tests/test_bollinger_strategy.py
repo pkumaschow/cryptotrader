@@ -10,8 +10,11 @@ def make_tick(price: float, hour: int, minute: int = 0) -> PriceTick:
     return PriceTick(pair="BTC/USD", bid=price, ask=price, last=price, timestamp=ts)
 
 
-def make_cfg(period: int = 3, std_dev: float = 2.0) -> CurrencyConfig:
-    return CurrencyConfig(quantity=0.001, bollinger=BollingerParams(period=period, std_dev=std_dev))
+def make_cfg(
+    period: int = 3, std_dev: float = 2.0, min_band_width_pct: float = 0.0
+) -> CurrencyConfig:
+    params = BollingerParams(period=period, std_dev=std_dev, min_band_width_pct=min_band_width_pct)
+    return CurrencyConfig(quantity=0.001, bollinger=params)
 
 
 def test_returns_none_during_warmup():
@@ -50,6 +53,29 @@ def test_no_sell_without_position():
     strategy = BollingerStrategy(make_cfg(period=3, std_dev=0.1))
     results = [strategy.evaluate(make_tick(50.0, h)) for h in range(10)]
     assert Signal.SELL not in results
+
+
+def test_min_band_width_suppresses_buy():
+    """BUY suppressed when min_band_width_pct exceeds the actual band width at signal time."""
+    strategy = BollingerStrategy(make_cfg(period=3, std_dev=0.1, min_band_width_pct=999.0))
+    for h in range(5):
+        strategy.evaluate(make_tick(50.0, h))
+    strategy.evaluate(make_tick(50.0, 5))
+    strategy.evaluate(make_tick(500.0, 5, minute=30))
+    result = strategy.evaluate(make_tick(50.0, 6))
+    assert result is None
+
+
+def test_min_band_width_allows_buy_when_met():
+    """BUY fires when band width % meets or exceeds the minimum."""
+    # min_band_width_pct=0.0 — no minimum — same condition as existing buy test
+    strategy = BollingerStrategy(make_cfg(period=3, std_dev=0.1, min_band_width_pct=0.0))
+    for h in range(5):
+        strategy.evaluate(make_tick(50.0, h))
+    strategy.evaluate(make_tick(50.0, 5))
+    strategy.evaluate(make_tick(500.0, 5, minute=30))
+    result = strategy.evaluate(make_tick(50.0, 6))
+    assert result == Signal.BUY
 
 
 def test_strategy_name():

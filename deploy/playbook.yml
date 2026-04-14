@@ -44,6 +44,13 @@
         group: "{{ ansible_user }}"
         mode: "0600"
 
+    - name: Ensure .env has correct permissions
+      ansible.builtin.file:
+        path: "{{ deploy_path }}/.env"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0600"
+
     - name: Create Python virtualenv
       ansible.builtin.command:
         cmd: python3 -m venv "{{ deploy_path }}/venv"

@@ -2,6 +2,7 @@
 # "test"       — paper trading, runs ALL 4 strategies simultaneously for comparison
 # "production" — live trading using only the configured strategy per pair
 active = "test"
+# max_daily_loss_usd = 50.00  # Circuit breaker: halt all trades once cumulative daily loss exceeds this amount
 
 [database]
 path = "cryptotrader.db"
@@ -20,6 +21,9 @@ quantity = 0.001
 buy_trigger = 65000.00
 sell_trigger = 68000.00
 
+[currencies."BTC/USD".bollinger]
+min_band_width_pct = 2.0
+
 [currencies."ETH/USD"]
 strategy = "ema"
 quantity = 0.05
@@ -29,3 +33,6 @@ quantity = 0.05
 [currencies."ETH/USD".threshold]
 buy_trigger = 1900.00
 sell_trigger = 2050.00
+
+[currencies."ETH/USD".bollinger]
+min_band_width_pct = 2.0

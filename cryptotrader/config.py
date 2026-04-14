@@ -24,6 +24,7 @@ class EMAParams(BaseModel):
 class BollingerParams(BaseModel):
     period: int = 20
     std_dev: float = 2.0
+    min_band_width_pct: float = Field(default=0.0, ge=0.0)
 
 
 class TrendPullbackParams(BaseModel):
@@ -46,6 +47,7 @@ class CurrencyConfig(BaseModel):
 
 class ModeConfig(BaseModel):
     active: str
+    max_daily_loss_usd: float | None = None
 
     @field_validator("active")
     @classmethod
