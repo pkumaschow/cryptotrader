@@ -134,7 +134,8 @@ async def _run(tui: bool, hidden_panels: set[str]) -> None:
 
     ws_task = asyncio.create_task(ws.run())
     trader_task = asyncio.create_task(trader.run())
-    health_task = asyncio.create_task(run_health())
+    health_port = int(os.environ.get("HEALTH_PORT", "8080"))
+    health_task = asyncio.create_task(run_health(health_port))
 
     if tui:
         _tui_terminal_setup()
