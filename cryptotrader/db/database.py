@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -71,6 +72,7 @@ def init_db(path: str, read_only: bool = False) -> None:
         except sqlite3.IntegrityError:
             pass  # existing duplicate rows — index skipped, file lock is primary guard
         conn.commit()
+    os.chmod(path, 0o600)
 
 
 @contextmanager

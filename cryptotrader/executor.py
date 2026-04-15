@@ -40,7 +40,8 @@ class TradeExecutor:
         if self._rest_client is None:
             from cryptotrader.exchange.kraken_rest import KrakenRest
             self._rest_client = KrakenRest(
-                get_secrets().kraken_api_key, get_secrets().kraken_api_secret)
+                get_secrets().kraken_api_key,
+                get_secrets().kraken_api_secret.get_secret_value())
 
     async def _check_balance(self, pair: str, cost: float) -> bool:
         """Return True if sufficient balance exists for the trade cost. Skips on error."""

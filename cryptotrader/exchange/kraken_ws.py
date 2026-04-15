@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import ssl
 from datetime import UTC, datetime
 
 import websockets
@@ -55,9 +56,11 @@ class KrakenWebSocket:
             ws = None
             try:
                 logger.info("Connecting to Kraken WS (attempt %d)", self._backoff_attempt + 1)
+                ssl_ctx = ssl.create_default_context()
                 ws = await asyncio.wait_for(
                     websockets.connect(
                         _WS_URL,
+                        ssl=ssl_ctx,
                         ping_interval=20,
                         ping_timeout=10,
                         additional_headers={"User-Agent": "cryptotrader/0.1.0"},
