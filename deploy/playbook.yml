@@ -70,10 +70,9 @@
         virtualenv: "{{ deploy_path }}/venv"
 
     - name: Install project in editable mode
-      ansible.builtin.pip:
-        name: "{{ deploy_path }}"
-        extra_args: "-e --no-deps"
-        virtualenv: "{{ deploy_path }}/venv"
+      ansible.builtin.command:
+        cmd: "{{ deploy_path }}/venv/bin/pip install -e {{ deploy_path }} --no-deps"
+      changed_when: true
 
     - name: Install litecli
       ansible.builtin.pip:
