@@ -3,7 +3,8 @@
 # Expects: PI_USER, PI_HOST env vars set by CI.
 set -euo pipefail
 
-DEPLOY_PATH="/opt/cryptotrader"
+DEPLOY_PATH="${DEPLOY_PATH:-/opt/cryptotrader}"
+SERVICE_NAME="${SERVICE_NAME:-cryptotrader}"
 
 echo "==> Syncing source to ${PI_USER}@${PI_HOST}:${DEPLOY_PATH}"
 rsync -avz --delete \
@@ -24,11 +25,11 @@ ssh "${PI_USER}@${PI_HOST}" "
 
 echo "==> Copying systemd service"
 ssh "${PI_USER}@${PI_HOST}" "
-  sudo cp ${DEPLOY_PATH}/deploy/cryptotrader.service /etc/systemd/system/ && \
+  sudo cp ${DEPLOY_PATH}/deploy/${SERVICE_NAME}.service /etc/systemd/system/ && \
   sudo systemctl daemon-reload && \
-  sudo systemctl enable cryptotrader && \
-  sudo systemctl restart cryptotrader
+  sudo systemctl enable ${SERVICE_NAME} && \
+  sudo systemctl restart ${SERVICE_NAME}
 "
 
 echo "==> Deployment complete"
-ssh "${PI_USER}@${PI_HOST}" "sudo systemctl status cryptotrader --no-pager"
+ssh "${PI_USER}@${PI_HOST}" "sudo systemctl status ${SERVICE_NAME} --no-pager"

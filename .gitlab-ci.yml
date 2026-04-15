@@ -64,7 +64,7 @@ docker:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push"'
 
-deploy:
+deploy-staging:
   stage: deploy
   tags: [cryptotrader]
   image: alpine:latest
@@ -79,10 +79,35 @@ deploy:
     - ssh-keyscan -H "$PI_HOST" >> ~/.ssh/known_hosts
     - chmod 600 ~/.ssh/known_hosts
   script:
+    - DEPLOY_PATH=/opt/cryptotrader-staging SERVICE_NAME=cryptotrader-staging bash deploy/deploy.sh
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+  environment:
+    name: staging
+    url: http://pihole.homelab.com
+    deployment_tier: staging
+
+deploy:
+  stage: deploy
+  tags: [cryptotrader]
+  image: alpine:latest
+  needs: [deploy-staging]
+  before_script:
+    - apk add --no-cache openssh-client rsync bash
+    - eval $(ssh-agent -s)
+    - echo "$PI_SSH_PRIVATE_KEY" | base64 -d > /tmp/pi_key
+    - chmod 600 /tmp/pi_key
+    - ssh-add /tmp/pi_key
+    - rm /tmp/pi_key
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - ssh-keyscan -H "$PI_HOST" >> ~/.ssh/known_hosts
+    - chmod 600 ~/.ssh/known_hosts
+  script:
     - bash deploy/deploy.sh
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
-      when: manual   # run manually via GitLab UI until runner is configured
+      when: manual
   environment:
     name: production
     url: http://pihole.homelab.com
