@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import tomllib
 from functools import lru_cache
 from pathlib import Path
@@ -80,7 +81,10 @@ class KrakenSecrets(BaseSettings):
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 
-_CONFIG_PATH = Path(__file__).parent.parent / "config" / "settings.toml"
+_CONFIG_PATH = Path(
+    os.environ.get("CRYPTOTRADER_CONFIG",
+                   str(Path(__file__).parent.parent / "config" / "settings.toml"))
+)
 
 
 @lru_cache(maxsize=1)

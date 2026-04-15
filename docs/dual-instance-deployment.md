@@ -1,18 +1,27 @@
-# Dual-Instance Deployment (Production + Test)
+# Dual-Instance Deployment (Staging + Production)
 
-Running a production instance and a test/paper-trading instance of cryptotrader on the same host (`pihole.homelab.com`).
+Two instances of cryptotrader run on `pihole.homelab.com` (`192.168.1.66`):
+
+- **staging** — paper trading, auto-deploys on every merge to `main`
+- **production** — live trading, manual deploy gated behind staging success
+
+---
 
 ## Directory Layout
 
 ```
-/opt/cryptotrader/          ← production (live trading)
-  .env                      ← prod API keys + TRADING_MODE=live
-  *.py, requirements.txt
-
-/opt/cryptotrader-test/     ← test (paper trading)
-  .env                      ← test API keys + TRADING_MODE=paper
-  *.py, requirements.txt
+pihole.homelab.com
+├── /opt/cryptotrader/           ← production (live trading)
+│   ├── .env                     ← prod Kraken keys + HEALTH_PORT=8080 (default, optional)
+│   ├── venv/
+│   └── cryptotrader.db
+└── /opt/cryptotrader-staging/   ← staging (paper trading)
+    ├── .env                     ← staging Kraken keys + HEALTH_PORT=8081
+    ├── venv/
+    └── cryptotrader.db
 ```
+
+---
 
 ## Environment Files
 
@@ -20,101 +29,118 @@ Running a production instance and a test/paper-trading instance of cryptotrader 
 ```env
 KRAKEN_API_KEY=<live key>
 KRAKEN_API_SECRET=<live secret>
-TRADING_MODE=live
 ```
 
-**`/opt/cryptotrader-test/.env`** (test):
+**`/opt/cryptotrader-staging/.env`** (staging):
 ```env
-KRAKEN_API_KEY=<sandbox or sub-account key>
-KRAKEN_API_SECRET=<sandbox or sub-account secret>
-TRADING_MODE=paper
+KRAKEN_API_KEY=<staging key>
+KRAKEN_API_SECRET=<staging secret>
+HEALTH_PORT=8081
 ```
 
-Use a separate Kraken sub-account or the Kraken sandbox environment for the test instance to ensure no real orders are placed.
+`HEALTH_PORT` prevents both instances binding to port 8080 simultaneously.
+Paper vs live trading mode is controlled by `mode.active` in `config/settings.toml`, not the `.env`.
+
+---
 
 ## Systemd Services
 
-### Production — `/etc/systemd/system/cryptotrader.service`
+Both service files live in `deploy/` and are synced to the Pi on each deploy.
 
-Existing service, unchanged.
+| Service | File | Path |
+|---|---|---|
+| Production | `deploy/cryptotrader.service` | `/etc/systemd/system/cryptotrader.service` |
+| Staging | `deploy/cryptotrader-staging.service` | `/etc/systemd/system/cryptotrader-staging.service` |
 
-### Test — `/etc/systemd/system/cryptotrader-test.service`
+The staging service is identical to production except all paths point to `/opt/cryptotrader-staging` and the description reads `CryptoTrader (Staging)`. All hardening directives (`NoNewPrivileges`, `PrivateTmp`, `ProtectSystem`, etc.) are preserved in both.
 
-```ini
-[Unit]
-Description=CryptoTrader (Test)
-After=network.target
+---
 
-[Service]
-WorkingDirectory=/opt/cryptotrader-test
-EnvironmentFile=/opt/cryptotrader-test/.env
-ExecStart=/usr/bin/python3 /opt/cryptotrader-test/main.py
-User=peterk
-Restart=on-failure
-RestartSec=10
+## Pi Prerequisites (one-time manual setup)
 
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable and start:
 ```bash
+# 1. Create staging directory
+sudo mkdir -p /opt/cryptotrader-staging
+sudo chown peterk:peterk /opt/cryptotrader-staging
+
+# 2. Create staging .env
+cat > /opt/cryptotrader-staging/.env <<'EOF'
+KRAKEN_API_KEY=<staging key>
+KRAKEN_API_SECRET=<staging secret>
+HEALTH_PORT=8081
+EOF
+chmod 600 /opt/cryptotrader-staging/.env
+
+# 3. Install staging service (after first pipeline run copies the file)
+sudo cp /opt/cryptotrader-staging/deploy/cryptotrader-staging.service \
+        /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable cryptotrader-test
-sudo systemctl start cryptotrader-test
-```
+sudo systemctl enable cryptotrader-staging
 
-## Sudoers
-
-Both services need passwordless restart for CI/CD deploy:
-
-```
+# 4. Sudoers — passwordless restart and service install for both instances
+sudo tee /etc/sudoers.d/cryptotrader > /dev/null <<'EOF'
 peterk ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart cryptotrader
-peterk ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart cryptotrader-test
+peterk ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart cryptotrader-staging
+peterk ALL=(ALL) NOPASSWD: /bin/cp /opt/cryptotrader/deploy/cryptotrader.service /etc/systemd/system/cryptotrader.service
+peterk ALL=(ALL) NOPASSWD: /bin/cp /opt/cryptotrader-staging/deploy/cryptotrader-staging.service /etc/systemd/system/cryptotrader-staging.service
+peterk ALL=(ALL) NOPASSWD: /usr/bin/systemctl daemon-reload
+peterk ALL=(ALL) NOPASSWD: /usr/bin/systemctl enable cryptotrader
+peterk ALL=(ALL) NOPASSWD: /usr/bin/systemctl enable cryptotrader-staging
+EOF
+sudo chmod 440 /etc/sudoers.d/cryptotrader
 ```
 
-Add via `sudo visudo -f /etc/sudoers.d/cryptotrader`.
+---
 
 ## CI/CD Pipeline
 
-Add a second deploy job to `.gitlab-ci.yml` alongside the existing `deploy` job:
-
-```yaml
-deploy-test:
-  stage: deploy
-  when: on_success        # auto-deploy to test on every main merge
-  only:
-    - main
-  image: alpine:latest
-  before_script:
-    - apk add --no-cache openssh-client rsync
-    - eval $(ssh-agent -s)
-    - echo "$PI_SSH_PRIVATE_KEY" | base64 -d | ssh-add -
-    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
-    - ssh-keyscan -H "$PI_HOST" >> ~/.ssh/known_hosts
-  script:
-    - rsync -az --delete --exclude='.env' --exclude='*.db'
-        . $PI_USER@$PI_HOST:/opt/cryptotrader-test/
-    - ssh $PI_USER@$PI_HOST "sudo systemctl restart cryptotrader-test"
+```
+push to main
+     │
+     ▼
+lint → test → docker
+                 │
+                 ▼
+          deploy-staging   (auto, on_success)
+                 │
+                 ▼  [manual button only appears after staging succeeds]
+          deploy            (manual trigger → production)
 ```
 
-The existing `deploy` job (production) remains manual-trigger only. Test deploys automatically on every merge to `main`.
+Both deploy jobs call `deploy/deploy.sh`. The script is parameterised via environment variables:
 
-Note: `--exclude='.env'` and `--exclude='*.db'` prevent rsync from overwriting the instance-specific env file or the live database.
+| Variable | Production | Staging |
+|---|---|---|
+| `DEPLOY_PATH` | `/opt/cryptotrader` (default) | `/opt/cryptotrader-staging` |
+| `SERVICE_NAME` | `cryptotrader` (default) | `cryptotrader-staging` |
 
-## Viewing Logs
+The staging CI job sets these inline:
+```yaml
+script:
+  - DEPLOY_PATH=/opt/cryptotrader-staging SERVICE_NAME=cryptotrader-staging bash deploy/deploy.sh
+```
+
+No new CI/CD variables are needed — both jobs reuse `PI_SSH_PRIVATE_KEY`, `PI_HOST`, and `PI_USER`.
+
+---
+
+## Health Check Endpoints
+
+| Instance | URL |
+|---|---|
+| Production | `http://192.168.1.66:8080/health` |
+| Staging | `http://192.168.1.66:8081/health` |
+
+---
+
+## Logs and Status
 
 ```bash
 # Production
 journalctl -u cryptotrader -f
-
-# Test
-journalctl -u cryptotrader-test -f
-```
-
-## Service Status
-
-```bash
 systemctl status cryptotrader
-systemctl status cryptotrader-test
+
+# Staging
+journalctl -u cryptotrader-staging -f
+systemctl status cryptotrader-staging
 ```

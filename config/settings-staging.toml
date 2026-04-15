@@ -1,0 +1,32 @@
+[mode]
+# test mode runs ALL 4 strategies simultaneously for comparison (bollinger, ema, threshold, trend_pullback)
+active = "test"
+
+[database]
+path = "cryptotrader.db"
+
+[websocket]
+stale_threshold = 30
+stats_refresh_interval = 5
+
+[currencies."BTC/USD"]
+strategy = "bollinger"
+quantity = 0.001
+
+[currencies."BTC/USD".threshold]
+buy_trigger = 65000.00
+sell_trigger = 68000.00
+
+[currencies."BTC/USD".bollinger]
+min_band_width_pct = 2.0
+
+[currencies."ETH/USD"]
+strategy = "bollinger"
+quantity = 0.03
+
+[currencies."ETH/USD".threshold]
+buy_trigger = 1900.00
+sell_trigger = 2050.00
+
+[currencies."ETH/USD".bollinger]
+min_band_width_pct = 2.0

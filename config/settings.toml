@@ -1,7 +1,7 @@
 [mode]
 # "test"       — paper trading, runs ALL 4 strategies simultaneously for comparison
 # "production" — live trading using only the configured strategy per pair
-active = "test"
+active = "production"
 # max_daily_loss_usd = 50.00  # Circuit breaker: halt all trades once cumulative daily loss exceeds this amount
 
 [database]
@@ -12,7 +12,7 @@ stale_threshold = 30
 stats_refresh_interval = 5
 
 [currencies."BTC/USD"]
-strategy = "ema"
+strategy = "bollinger"
 quantity = 0.001
 # budget_usd = 50.00      # Production: spend this USD amount per buy (sets quantity = budget_usd / price)
 # max_order_usd = 500.00  # Production: hard cap — refuse any order exceeding this USD value
@@ -25,8 +25,8 @@ sell_trigger = 68000.00
 min_band_width_pct = 2.0
 
 [currencies."ETH/USD"]
-strategy = "ema"
-quantity = 0.05
+strategy = "bollinger"
+quantity = 0.03
 # budget_usd = 50.00      # Production: spend this USD amount per buy (sets quantity = budget_usd / price)
 # max_order_usd = 500.00  # Production: hard cap — refuse any order exceeding this USD value
 
