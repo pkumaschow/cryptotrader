@@ -5,7 +5,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -75,7 +75,7 @@ class Settings(BaseModel):
 
 class KrakenSecrets(BaseSettings):
     kraken_api_key: str = ""
-    kraken_api_secret: str = ""
+    kraken_api_secret: SecretStr = SecretStr("")
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

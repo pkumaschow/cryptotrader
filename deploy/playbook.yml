@@ -64,10 +64,15 @@
       register: pip_upgrade
       changed_when: "'Successfully installed' in pip_upgrade.stdout"
 
-    - name: Install project dependencies
+    - name: Install pinned dependencies from lock file
+      ansible.builtin.pip:
+        requirements: "{{ deploy_path }}/requirements.lock"
+        virtualenv: "{{ deploy_path }}/venv"
+
+    - name: Install project in editable mode
       ansible.builtin.pip:
         name: "{{ deploy_path }}"
-        extra_args: "-e"
+        extra_args: "-e --no-deps"
         virtualenv: "{{ deploy_path }}/venv"
 
     - name: Install litecli
@@ -86,6 +91,14 @@
         mode: "0644"
       become: true
       notify: Reload systemd
+
+    - name: Enforce database file permissions
+      ansible.builtin.file:
+        path: "{{ deploy_path }}/cryptotrader.db"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0600"
+      ignore_errors: true  # file may not exist on first deploy
 
     - name: Enable and start service
       ansible.builtin.systemd:

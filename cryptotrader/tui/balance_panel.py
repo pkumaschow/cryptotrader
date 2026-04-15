@@ -49,7 +49,9 @@ class BalancePanel(Widget):
             from cryptotrader.config import get_secrets
             from cryptotrader.exchange.kraken_rest import KrakenRest
             secrets = get_secrets()
-            client = KrakenRest(secrets.kraken_api_key, secrets.kraken_api_secret)
+            client = KrakenRest(
+                secrets.kraken_api_key, secrets.kraken_api_secret.get_secret_value()
+            )
             try:
                 return await client.get_balance()
             finally:
