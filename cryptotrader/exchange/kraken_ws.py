@@ -23,6 +23,12 @@ logger = logging.getLogger(__name__)
 
 _WS_URL = "wss://ws.kraken.com/v2"
 
+# Kraken WS v2 uses different symbols for some assets vs REST API wsnames
+_WS_SYMBOL_MAP: dict[str, str] = {
+    "XDG/USD": "DOGE/USD",
+}
+_WS_SYMBOL_REVERSE: dict[str, str] = {v: k for k, v in _WS_SYMBOL_MAP.items()}
+
 
 class KrakenWebSocket:
     def __init__(self, pairs: list[str], price_queue: asyncio.Queue[PriceTick]) -> None:
@@ -73,7 +79,7 @@ class KrakenWebSocket:
                     "method": "subscribe",
                     "params": {
                         "channel": "ticker",
-                        "symbol": self._pairs,
+                        "symbol": [_WS_SYMBOL_MAP.get(p, p) for p in self._pairs],
                     },
                 }))
                 logger.info("Subscription sent for pairs=%s", self._pairs)
@@ -143,7 +149,7 @@ class KrakenWebSocket:
         for item in msg.get("data", []):
             try:
                 tick = PriceTick(
-                    pair=item["symbol"],
+                    pair=_WS_SYMBOL_REVERSE.get(item["symbol"], item["symbol"]),
                     bid=float(item["bid"]),
                     ask=float(item["ask"]),
                     last=float(item["last"]),

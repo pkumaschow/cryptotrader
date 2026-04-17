@@ -23,7 +23,7 @@ def main() -> None:
     database.init_db(settings.database.path)
 
     strategy_names = [args.strategy] if args.strategy else list(_REGISTRY.keys())
-    pairs = [args.pair] if args.pair else list(settings.currencies.keys()) + [None]
+    pairs = [args.pair] if args.pair else [*list(settings.currencies.keys()), None]
 
     print(f"\n{'─' * 60}")
     print(f"  CryptoTrader Statistics — mode: {args.mode}")
@@ -37,7 +37,7 @@ def main() -> None:
             print(f"    {label}")
             print(f"      Completed trades : {result.total_trades}")
             if result.total_trades == 0:
-                print(f"      No completed trades yet.")
+                print("      No completed trades yet.")
                 continue
             pnl_sign = "+" if result.total_pnl >= 0 else ""
             print(f"      Win rate         : {result.win_rate:.1f}%")

@@ -30,3 +30,36 @@ sell_trigger = 2050.00
 
 [currencies."ETH/USD".bollinger]
 min_band_width_pct = 2.0
+
+[currencies."XDG/USD"]
+strategy = "bollinger"
+quantity = 100
+
+[currencies."XDG/USD".threshold]
+buy_trigger = 0.080
+sell_trigger = 0.120
+
+[currencies."XDG/USD".bollinger]
+min_band_width_pct = 2.0
+
+[currencies."XLM/USD"]
+strategy = "bollinger"
+quantity = 50
+
+[currencies."XLM/USD".threshold]
+buy_trigger = 0.130
+sell_trigger = 0.200
+
+[currencies."XLM/USD".bollinger]
+min_band_width_pct = 2.0
+
+[currencies."BABY/USD"]
+strategy = "bollinger"
+quantity = 500
+
+[currencies."BABY/USD".threshold]
+buy_trigger = 0.012
+sell_trigger = 0.020
+
+[currencies."BABY/USD".bollinger]
+min_band_width_pct = 2.0

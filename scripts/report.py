@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -28,7 +28,7 @@ W = 64  # report width
 
 def _period_bounds(period: str, back: int) -> list[tuple[datetime, datetime, str]]:
     """Return list of (since, until, label) for each requested period."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     bounds = []
     if period == "weekly":
         # Align to Monday
@@ -48,11 +48,11 @@ def _period_bounds(period: str, back: int) -> list[tuple[datetime, datetime, str
             while m <= 0:
                 m += 12
                 y -= 1
-            since = datetime(y, m, 1, tzinfo=timezone.utc)
+            since = datetime(y, m, 1, tzinfo=UTC)
             if m == 12:
-                until = datetime(y + 1, 1, 1, tzinfo=timezone.utc)
+                until = datetime(y + 1, 1, 1, tzinfo=UTC)
             else:
-                until = datetime(y, m + 1, 1, tzinfo=timezone.utc)
+                until = datetime(y, m + 1, 1, tzinfo=UTC)
             label = since.strftime("%B %Y")
             bounds.append((since, until, label))
     return bounds
@@ -97,7 +97,10 @@ def _render_period(label: str, since: datetime, until: datetime, mode: str) -> N
     # ── Comparative ─────────────────────────────────────────────────────────
     print(f"\n  {'COMPARATIVE SUMMARY'}")
     print(f"  {'─' * (W - 2)}")
-    print(f"  {'Strategy':<16}  {'Trades':>6}  {'Win %':>6}  {'P&L':>12}  {'Avg Gain':>10}  {'Avg Loss':>10}")
+    print(
+        f"  {'Strategy':<16}  {'Trades':>6}  {'Win %':>6}"
+        f"  {'P&L':>12}  {'Avg Gain':>10}  {'Avg Loss':>10}"
+    )
     print(f"  {'─' * 16}  {'─' * 6}  {'─' * 6}  {'─' * 12}  {'─' * 10}  {'─' * 10}")
 
     active = {s: r for s, r in all_results.items() if r.total_trades > 0}

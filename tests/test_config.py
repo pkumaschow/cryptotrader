@@ -29,12 +29,12 @@ def test_quantity_non_positive_raises(qty):
 
 def test_quantity_over_cap_raises():
     with pytest.raises(ValidationError):
-        CurrencyConfig(quantity=10.1)
+        CurrencyConfig(quantity=100000.1)
 
 
 def test_quantity_valid_boundaries():
     assert CurrencyConfig(quantity=0.001).quantity == 0.001
-    assert CurrencyConfig(quantity=10.0).quantity == 10.0
+    assert CurrencyConfig(quantity=100000.0).quantity == 100000.0
 
 
 def test_invalid_mode_raises():
