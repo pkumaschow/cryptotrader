@@ -98,7 +98,16 @@ class KrakenWebSocket:
             except TimeoutError:
                 logger.warning("WS connect timed out after 15s — will retry")
             except ConnectionClosed as exc:
-                logger.warning("WS connection closed: %s", exc)
+                close_code = exc.rcvd.code if exc.rcvd is not None else None
+                if close_code == 1000:
+                    # Kraken performs server-side session refreshes ~hourly (code 1000 Normal
+                    # Closure). This is expected — reset backoff so we reconnect in 1s.
+                    self._backoff_attempt = 0
+                    logger.debug("Kraken WS closed by server (code 1000 normal refresh)"
+                                 " — reconnecting")
+                else:
+                    logger.warning("WS connection closed unexpectedly (code=%s): %s",
+                                   close_code, exc)
             except InvalidStatus as exc:
                 if exc.response.status_code == 429:
                     logger.warning("Kraken rate limited (HTTP 429) — waiting 60s before retry")
