@@ -160,7 +160,15 @@ class KrakenWebSocket:
                 try:
                     self._price_queue.put_nowait(tick)
                 except asyncio.QueueFull:
-                    logger.warning("Price queue full — dropping tick for %s", tick.pair)
+                    try:
+                        self._price_queue.get_nowait()  # evict oldest stale tick
+                        logger.debug("Queue full — evicted stale tick, enqueuing %s", tick.pair)
+                    except asyncio.QueueEmpty:
+                        pass
+                    try:
+                        self._price_queue.put_nowait(tick)
+                    except asyncio.QueueFull:
+                        logger.warning("Price queue full — dropping tick for %s", tick.pair)
             except (KeyError, TypeError, ValueError) as exc:
                 logger.debug("Failed to parse tick: %s — %s", item, exc)
 
