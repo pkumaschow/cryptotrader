@@ -42,7 +42,9 @@ class WeeklySummaryPanel(Widget):
             trades = database.query_trades(
                 settings.database.path, since=since, read_only=True
             )
-            counts: dict[str, dict[str, int]] = {}
+            counts: dict[str, dict[str, int]] = {
+                pair: {"buy": 0, "sell": 0} for pair in settings.currencies
+            }
             for trade in trades:
                 entry = counts.setdefault(trade.pair, {"buy": 0, "sell": 0})
                 if trade.side == Side.BUY:

@@ -34,7 +34,7 @@ class TrendPullbackParams(BaseModel):
 
 class CurrencyConfig(BaseModel):
     strategy: str = "ema"
-    quantity: float = Field(gt=0, le=10.0)
+    quantity: float = Field(gt=0, le=100000.0)
     # Production only: spend this USD amount per buy (overrides quantity)
     budget_usd: float | None = None
     # Production only: hard cap — refuse to place any order exceeding this USD value
@@ -77,10 +77,14 @@ class KrakenSecrets(BaseSettings):
     kraken_api_key: str = ""
     kraken_api_secret: SecretStr = SecretStr("")
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
-_CONFIG_PATH = Path(__file__).parent.parent / "config" / "settings.toml"
+class _AppConfig(BaseSettings):
+    cryptotrader_config: str = str(Path(__file__).parent.parent / "config" / "settings.toml")
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
+
+_CONFIG_PATH = Path(_AppConfig().cryptotrader_config)
 
 
 @lru_cache(maxsize=1)
