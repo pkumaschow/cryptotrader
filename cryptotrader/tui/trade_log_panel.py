@@ -75,7 +75,8 @@ class TradeLogPanel(Widget):
     def _load_history(self) -> None:
         try:
             settings = get_settings()
-            trades   = database.query_trades(settings.database.path, read_only=True)
+            mode = settings.mode.active if settings.mode.active == "production" else None
+            trades   = database.query_trades(settings.database.path, mode=mode, read_only=True)
             deposits = database.query_deposits(settings.database.path, read_only=True)
         except Exception:
             return
@@ -94,6 +95,9 @@ class TradeLogPanel(Widget):
         log.write(f"[dim]── {len(recent)} historical · live below ──[/dim]")
 
     def append_trade(self, trade: Trade) -> None:
+        settings = get_settings()
+        if settings.mode.active == "production" and trade.mode != "production":
+            return
         self._log_items.append(trade)
         log = self.query_one("#trade-log", RichLog)
         log.write(_render_item(trade, getattr(self.app, "use_utc", False)))
