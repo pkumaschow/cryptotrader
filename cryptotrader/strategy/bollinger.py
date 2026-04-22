@@ -18,8 +18,11 @@ class BollingerStrategy(Strategy):
         self._period = p.period
         self._std_dev = p.std_dev
         self._min_bw_pct = p.min_band_width_pct
+        self._fee_per_trade = p.fee_per_trade_usd
+        self._quantity = config.quantity
         self._candles = CandleBuilder(timeframe_minutes=60)
         self._in_position = False
+        self._entry_price: float | None = None
         self._db_path: str | None = None
         self.last_band_width: float | None = None
 
@@ -31,6 +34,7 @@ class BollingerStrategy(Strategy):
         trades = database.query_trades(db_path, pair=pair, strategy=self.name)
         if trades and trades[-1].side == Side.BUY:
             self._in_position = True
+            self._entry_price = trades[-1].price
 
     def evaluate(self, tick: PriceTick) -> Signal | None:
         completed = self._candles.add_tick(tick)
@@ -59,11 +63,19 @@ class BollingerStrategy(Strategy):
                 and curr_bw_pct >= self._min_bw_pct
             ):
                 self._in_position = True
+                self._entry_price = last_close
                 self.last_band_width = round(curr_width, 4)
                 return Signal.BUY
         else:
             if last_close < curr_mid:
+                if (
+                    self._fee_per_trade > 0
+                    and self._entry_price is not None
+                    and (last_close - self._entry_price) * self._quantity < self._fee_per_trade * 2
+                ):
+                    return None
                 self._in_position = False
+                self._entry_price = None
                 self.last_band_width = round(curr_width, 4)
                 return Signal.SELL
         return None
