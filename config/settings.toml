@@ -36,3 +36,14 @@ sell_trigger = 2050.00
 
 [currencies."ETH/USD".bollinger]
 min_band_width_pct = 2.0
+
+[currencies."SOL/USD"]
+strategy = "bollinger"
+quantity = 0.5
+
+[currencies."SOL/USD".threshold]
+buy_trigger = 120.00
+sell_trigger = 150.00
+
+[currencies."SOL/USD".bollinger]
+min_band_width_pct = 2.0
