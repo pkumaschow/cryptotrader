@@ -5,8 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=peterk
-Group=peterk
+User=cryptotrader
+Group=cryptotrader
 WorkingDirectory=/opt/cryptotrader-staging
 EnvironmentFile=-/opt/cryptotrader-staging/.env
 ExecStart=/opt/cryptotrader-staging/venv/bin/python -m cryptotrader.main
@@ -21,7 +21,7 @@ TimeoutStopSec=30
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict
-ProtectHome=read-only
+ProtectHome=yes
 ReadWritePaths=/opt/cryptotrader-staging
 RestrictAddressFamilies=AF_INET AF_INET6
 CapabilityBoundingSet=

@@ -9,13 +9,29 @@
     repo_root: "{{ playbook_dir }}/.."
 
   tasks:
+    - name: Create cryptotrader system group
+      ansible.builtin.group:
+        name: cryptotrader
+        system: true
+      become: true
+
+    - name: Create cryptotrader system user
+      ansible.builtin.user:
+        name: cryptotrader
+        group: cryptotrader
+        system: true
+        shell: /sbin/nologin
+        home: /nonexistent
+        create_home: false
+      become: true
+
     - name: Create deploy directory
       ansible.builtin.file:
         path: "{{ deploy_path }}"
         state: directory
         owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
-        mode: "0755"
+        group: cryptotrader
+        mode: "0775"
       become: true
 
     - name: Sync project source
@@ -40,16 +56,18 @@
           KRAKEN_API_KEY=
           KRAKEN_API_SECRET=
         force: false   # never overwrite an existing .env
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
+        owner: cryptotrader
+        group: cryptotrader
         mode: "0600"
+      become: true
 
     - name: Ensure .env has correct permissions
       ansible.builtin.file:
         path: "{{ deploy_path }}/.env"
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
+        owner: cryptotrader
+        group: cryptotrader
         mode: "0600"
+      become: true
 
     - name: Create Python virtualenv
       ansible.builtin.command:
@@ -94,9 +112,10 @@
     - name: Enforce database file permissions
       ansible.builtin.file:
         path: "{{ deploy_path }}/cryptotrader.db"
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
+        owner: cryptotrader
+        group: cryptotrader
         mode: "0600"
+      become: true
       ignore_errors: true  # file may not exist on first deploy
 
     - name: Enable and start service
