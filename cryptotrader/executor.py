@@ -88,7 +88,7 @@ class TradeExecutor:
                 return None
 
         from cryptotrader.statistics import daily_pnl
-        pnl_today = daily_pnl(mode=mode)
+        pnl_today = daily_pnl(mode=mode, db_path=settings.database.path)
         if pnl_today <= -settings.mode.max_daily_loss_usd:
                 logger.warning(
                     "Daily loss limit breached ($%.2f lost today, limit=$%.2f) "
