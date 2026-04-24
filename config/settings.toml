@@ -2,7 +2,7 @@
 # "test"       — paper trading, runs ALL 4 strategies simultaneously for comparison
 # "production" — live trading using only the configured strategy per pair
 active = "production"
-# max_daily_loss_usd = 50.00  # Circuit breaker: halt all trades once cumulative daily loss exceeds this amount
+max_daily_loss_usd = 75.00  # Circuit breaker: halt all trades once cumulative daily loss exceeds this amount
 
 [database]
 path = "cryptotrader.db"
@@ -14,8 +14,8 @@ stats_refresh_interval = 5
 [currencies."BTC/USD"]
 strategy = "bollinger"
 quantity = 0.001
-# budget_usd = 50.00      # Production: spend this USD amount per buy (sets quantity = budget_usd / price)
-# max_order_usd = 500.00  # Production: hard cap — refuse any order exceeding this USD value
+budget_usd = 50.00      # Production: spend this USD amount per buy (sets quantity = budget_usd / price)
+max_order_usd = 500.00  # Production: hard cap — refuse any order exceeding this USD value
 
 [currencies."BTC/USD".threshold]
 buy_trigger = 65000.00
@@ -28,8 +28,8 @@ fee_per_trade_usd = 0.60
 [currencies."ETH/USD"]
 strategy = "bollinger"
 quantity = 0.03
-# budget_usd = 50.00      # Production: spend this USD amount per buy (sets quantity = budget_usd / price)
-# max_order_usd = 500.00  # Production: hard cap — refuse any order exceeding this USD value
+budget_usd = 50.00      # Production: spend this USD amount per buy (sets quantity = budget_usd / price)
+max_order_usd = 500.00  # Production: hard cap — refuse any order exceeding this USD value
 
 [currencies."ETH/USD".threshold]
 buy_trigger = 1900.00
