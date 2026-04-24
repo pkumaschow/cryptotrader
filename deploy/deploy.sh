@@ -23,6 +23,25 @@ ssh "${PI_USER}@${PI_HOST}" "
   venv/bin/pip install --quiet -e .
 "
 
+echo "==> Ensuring cryptotrader service account exists"
+ssh "${PI_USER}@${PI_HOST}" "
+  sudo groupadd -f cryptotrader && \
+  id cryptotrader &>/dev/null || sudo useradd -r -s /sbin/nologin -M -g cryptotrader cryptotrader
+"
+
+echo "==> Setting deploy directory ownership"
+ssh "${PI_USER}@${PI_HOST}" "
+  sudo chown ${PI_USER}:cryptotrader ${DEPLOY_PATH} && \
+  sudo chmod 775 ${DEPLOY_PATH} && \
+  if [ -f ${DEPLOY_PATH}/.env ]; then
+    sudo chown cryptotrader:cryptotrader ${DEPLOY_PATH}/.env && \
+    sudo chmod 600 ${DEPLOY_PATH}/.env
+  fi && \
+  if [ -f ${DEPLOY_PATH}/cryptotrader.db ]; then
+    sudo chown cryptotrader:cryptotrader ${DEPLOY_PATH}/cryptotrader.db
+  fi
+"
+
 echo "==> Copying systemd service"
 ssh "${PI_USER}@${PI_HOST}" "
   sudo cp ${DEPLOY_PATH}/deploy/${SERVICE_NAME}.service /etc/systemd/system/ && \
