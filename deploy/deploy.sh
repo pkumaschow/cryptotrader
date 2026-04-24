@@ -9,6 +9,7 @@ SERVICE_NAME="${SERVICE_NAME:-cryptotrader}"
 echo "==> Syncing source to ${PI_USER}@${PI_HOST}:${DEPLOY_PATH}"
 rsync -avz --delete \
   --exclude='.git' \
+  --exclude='venv' \
   --exclude='__pycache__' \
   --exclude='*.pyc' \
   --exclude='.env' \
@@ -18,7 +19,7 @@ rsync -avz --delete \
 echo "==> Installing dependencies on Pi"
 ssh "${PI_USER}@${PI_HOST}" "
   cd ${DEPLOY_PATH} && \
-  python3 -m venv venv && \
+  python3 -m venv --clear venv && \
   venv/bin/pip install --quiet --upgrade pip && \
   venv/bin/pip install --quiet -e .
 "
