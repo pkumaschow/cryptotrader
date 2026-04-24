@@ -44,7 +44,7 @@ ssh "${PI_USER}@${PI_HOST}" "
     sudo chmod 600 ${DEPLOY_PATH}/.env
   fi && \
   for f in ${DEPLOY_PATH}/cryptotrader.db ${DEPLOY_PATH}/cryptotrader.db-shm ${DEPLOY_PATH}/cryptotrader.db-wal; do
-    [ -f \"\$f\" ] && sudo chown cryptotrader:cryptotrader \"\$f\"
+    [ -f \"\$f\" ] && sudo chown cryptotrader:cryptotrader \"\$f\" || true
   done
 "
 
