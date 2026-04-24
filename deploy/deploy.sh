@@ -29,6 +29,11 @@ ssh "${PI_USER}@${PI_HOST}" "
   id cryptotrader &>/dev/null || sudo useradd -r -s /sbin/nologin -M -g cryptotrader cryptotrader
 "
 
+echo "==> Stopping service before ownership changes"
+ssh "${PI_USER}@${PI_HOST}" "
+  sudo systemctl stop ${SERVICE_NAME} 2>/dev/null || true
+"
+
 echo "==> Setting deploy directory ownership"
 ssh "${PI_USER}@${PI_HOST}" "
   sudo chown ${PI_USER}:cryptotrader ${DEPLOY_PATH} && \
@@ -37,9 +42,9 @@ ssh "${PI_USER}@${PI_HOST}" "
     sudo chown cryptotrader:cryptotrader ${DEPLOY_PATH}/.env && \
     sudo chmod 600 ${DEPLOY_PATH}/.env
   fi && \
-  if [ -f ${DEPLOY_PATH}/cryptotrader.db ]; then
-    sudo chown cryptotrader:cryptotrader ${DEPLOY_PATH}/cryptotrader.db
-  fi
+  for f in ${DEPLOY_PATH}/cryptotrader.db ${DEPLOY_PATH}/cryptotrader.db-shm ${DEPLOY_PATH}/cryptotrader.db-wal; do
+    [ -f \"\$f\" ] && sudo chown cryptotrader:cryptotrader \"\$f\"
+  done
 "
 
 echo "==> Copying systemd service"
