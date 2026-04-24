@@ -13,6 +13,7 @@ def make_tick(price: float, hour: int) -> PriceTick:
 def make_cfg(trend_period: int = 3, pullback_period: int = 3) -> CurrencyConfig:
     return CurrencyConfig(
         quantity=0.001,
+        max_order_usd=500.0,
         trend_pullback=TrendPullbackParams(
             trend_ema_period=trend_period,
             pullback_ema_period=pullback_period,

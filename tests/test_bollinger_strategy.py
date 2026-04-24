@@ -14,7 +14,7 @@ def make_cfg(
     period: int = 3, std_dev: float = 2.0, min_band_width_pct: float = 0.0
 ) -> CurrencyConfig:
     params = BollingerParams(period=period, std_dev=std_dev, min_band_width_pct=min_band_width_pct)
-    return CurrencyConfig(quantity=0.001, bollinger=params)
+    return CurrencyConfig(quantity=0.001, max_order_usd=500.0, bollinger=params)
 
 
 def test_returns_none_during_warmup():

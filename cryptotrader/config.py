@@ -38,8 +38,8 @@ class CurrencyConfig(BaseModel):
     quantity: float = Field(gt=0, le=100000.0)
     # Production only: spend this USD amount per buy (overrides quantity)
     budget_usd: float | None = None
-    # Production only: hard cap — refuse to place any order exceeding this USD value
-    max_order_usd: float | None = None
+    # Hard cap — refuse to place any order exceeding this USD value
+    max_order_usd: float
     threshold: ThresholdParams = ThresholdParams()
     ema: EMAParams = EMAParams()
     bollinger: BollingerParams = BollingerParams()
@@ -48,7 +48,7 @@ class CurrencyConfig(BaseModel):
 
 class ModeConfig(BaseModel):
     active: str
-    max_daily_loss_usd: float | None = None
+    max_daily_loss_usd: float
 
     @field_validator("active")
     @classmethod

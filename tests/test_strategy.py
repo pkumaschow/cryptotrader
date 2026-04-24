@@ -18,6 +18,7 @@ def make_cfg(buy: float, sell: float) -> CurrencyConfig:
         strategy="threshold",
         threshold=ThresholdParams(buy_trigger=buy, sell_trigger=sell),
         quantity=0.001,
+        max_order_usd=500.0,
     )
 
 

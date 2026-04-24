@@ -24,17 +24,17 @@ def test_currency_config(test_config_path):
 @pytest.mark.parametrize("qty", [0, -0.001, -1.0])
 def test_quantity_non_positive_raises(qty):
     with pytest.raises(ValidationError):
-        CurrencyConfig(quantity=qty)
+        CurrencyConfig(quantity=qty, max_order_usd=500.0)
 
 
 def test_quantity_over_cap_raises():
     with pytest.raises(ValidationError):
-        CurrencyConfig(quantity=100000.1)
+        CurrencyConfig(quantity=100000.1, max_order_usd=500.0)
 
 
 def test_quantity_valid_boundaries():
-    assert CurrencyConfig(quantity=0.001).quantity == 0.001
-    assert CurrencyConfig(quantity=100000.0).quantity == 100000.0
+    assert CurrencyConfig(quantity=0.001, max_order_usd=500.0).quantity == 0.001
+    assert CurrencyConfig(quantity=100000.0, max_order_usd=500.0).quantity == 100000.0
 
 
 def test_invalid_mode_raises():
@@ -43,8 +43,8 @@ def test_invalid_mode_raises():
 
 
 def test_valid_modes():
-    ModeConfig(active="test")
-    ModeConfig(active="production")
+    ModeConfig(active="test", max_daily_loss_usd=50.0)
+    ModeConfig(active="production", max_daily_loss_usd=50.0)
 
 
 def test_production_mode_raises_without_api_keys(test_config_path, tmp_path, monkeypatch):

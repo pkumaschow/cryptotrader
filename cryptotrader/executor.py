@@ -78,7 +78,7 @@ class TradeExecutor:
 
             cost = quantity * price
 
-            if currency_cfg.max_order_usd is not None and cost > currency_cfg.max_order_usd:
+            if cost > currency_cfg.max_order_usd:
                 raise RuntimeError(
                     f"Order value ${cost:.2f} exceeds max_order_usd=${currency_cfg.max_order_usd}"
                     f" for {pair} — refusing to place order"
@@ -87,10 +87,9 @@ class TradeExecutor:
             if not await self._check_balance(pair, cost):
                 return None
 
-        if settings.mode.max_daily_loss_usd is not None:
-            from cryptotrader.statistics import daily_pnl
-            pnl_today = daily_pnl(mode=mode)
-            if pnl_today <= -settings.mode.max_daily_loss_usd:
+        from cryptotrader.statistics import daily_pnl
+        pnl_today = daily_pnl(mode=mode)
+        if pnl_today <= -settings.mode.max_daily_loss_usd:
                 logger.warning(
                     "Daily loss limit breached ($%.2f lost today, limit=$%.2f) "
                     "— halting all trades for the rest of the day",

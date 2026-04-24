@@ -42,6 +42,7 @@ fee_per_trade_usd = 0.60
 [currencies."SOL/USD"]
 strategy = "bollinger"
 quantity = 0.5
+max_order_usd = 500.00  # hard cap — refuse any order exceeding this USD value
 
 [currencies."SOL/USD".threshold]
 buy_trigger = 120.00
