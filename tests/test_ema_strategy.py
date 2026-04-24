@@ -15,6 +15,7 @@ def make_cfg(
 ) -> CurrencyConfig:
     return CurrencyConfig(
         quantity=0.001,
+        max_order_usd=500.0,
         ema=EMAParams(
             fast_period=fast, slow_period=slow, atr_period=atr_period, atr_min_pct=atr_min_pct
         ),

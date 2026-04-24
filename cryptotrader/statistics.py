@@ -10,10 +10,11 @@ from cryptotrader.models import Side, StatsResult, Trade
 def compute(pair: str | None = None, mode: str = "test",
             strategy: str | None = None,
             since: datetime | None = None,
-            until: datetime | None = None) -> StatsResult:
-    settings = get_settings()
+            until: datetime | None = None,
+            db_path: str | None = None) -> StatsResult:
+    path = db_path if db_path is not None else get_settings().database.path
     trades = database.query_trades(
-        settings.database.path, pair=pair, mode=mode,
+        path, pair=pair, mode=mode,
         strategy=strategy, since=since, until=until,
     )
     if not trades:
@@ -47,10 +48,10 @@ def compute(pair: str | None = None, mode: str = "test",
     )
 
 
-def daily_pnl(mode: str = "test") -> float:
+def daily_pnl(mode: str = "test", db_path: str | None = None) -> float:
     """Return realized P&L for completed round-trips since UTC midnight today."""
     today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
-    return compute(mode=mode, since=today_start).total_pnl
+    return compute(mode=mode, since=today_start, db_path=db_path).total_pnl
 
 
 def all_strategies(mode: str = "test") -> list[str]:

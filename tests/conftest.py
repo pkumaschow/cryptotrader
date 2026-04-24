@@ -28,6 +28,7 @@ def test_config_path(tmp_path):
     config.write_text("""
 [mode]
 active = "test"
+max_daily_loss_usd = 50.0
 
 [database]
 path = "test_cryptotrader.db"
@@ -35,6 +36,7 @@ path = "test_cryptotrader.db"
 [currencies."BTC/USD"]
 strategy = "threshold"
 quantity = 0.001
+max_order_usd = 500.0
 
 [currencies."BTC/USD".threshold]
 buy_trigger = 50000.0
@@ -43,6 +45,7 @@ sell_trigger = 60000.0
 [currencies."ETH/USD"]
 strategy = "threshold"
 quantity = 0.01
+max_order_usd = 500.0
 
 [currencies."ETH/USD".threshold]
 buy_trigger = 2000.0
