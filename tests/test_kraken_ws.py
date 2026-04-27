@@ -1,4 +1,4 @@
-"""Tests for KrakenWebSocket reconnect backoff behaviour."""
+"""Tests for KrakenWebSocket reconnect backoff behaviour and feed health."""
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -117,3 +117,44 @@ async def test_backoff_not_reset_on_abnormal_close():
     assert ws._backoff_attempt == 3, (
         f"Expected 3 (kept 2 + increment), got {ws._backoff_attempt}"
     )
+
+
+# ── feed_healthy() tests ──────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_feed_healthy_false_when_never_connected():
+    """feed_healthy() returns False before any tick is received."""
+    queue: asyncio.Queue[PriceTick] = asyncio.Queue(maxsize=10)
+    ws = KrakenWebSocket(["BTC/USD"], queue)
+    # _last_tick_time starts at 0.0 — early-return path, no get_settings call needed
+    assert ws.feed_healthy() is False
+
+
+@pytest.mark.asyncio
+async def test_feed_healthy_true_within_threshold():
+    """feed_healthy() returns True when last tick was recent."""
+    queue: asyncio.Queue[PriceTick] = asyncio.Queue(maxsize=10)
+    ws = KrakenWebSocket(["BTC/USD"], queue)
+    now = asyncio.get_event_loop().time()
+    ws._last_tick_time = now - 5.0  # 5s ago, well within 30s threshold
+
+    with patch("cryptotrader.exchange.kraken_ws.get_settings") as ms:
+        fake = MagicMock()
+        fake.websocket.stale_threshold = 30
+        ms.return_value = fake
+        assert ws.feed_healthy() is True
+
+
+@pytest.mark.asyncio
+async def test_feed_healthy_false_beyond_threshold():
+    """feed_healthy() returns False when last tick exceeded stale_threshold."""
+    queue: asyncio.Queue[PriceTick] = asyncio.Queue(maxsize=10)
+    ws = KrakenWebSocket(["BTC/USD"], queue)
+    now = asyncio.get_event_loop().time()
+    ws._last_tick_time = now - 60.0  # 60s ago, beyond 30s threshold
+
+    with patch("cryptotrader.exchange.kraken_ws.get_settings") as ms:
+        fake = MagicMock()
+        fake.websocket.stale_threshold = 30
+        ms.return_value = fake
+        assert ws.feed_healthy() is False

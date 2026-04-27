@@ -130,7 +130,8 @@ async def _run(tui: bool, hidden_panels: set[str]) -> None:
     tui_price_queue: asyncio.Queue[PriceTick] = asyncio.Queue(maxsize=100)
 
     ws = KrakenWebSocket(pairs, price_queue)
-    trader = Trader(price_queue, tui_price_queue=tui_price_queue, tui_trade_queue=trade_queue)
+    trader = Trader(price_queue, tui_price_queue=tui_price_queue, tui_trade_queue=trade_queue,
+                    feed_healthy_fn=ws.feed_healthy)
 
     ws_task = asyncio.create_task(ws.run())
     trader_task = asyncio.create_task(trader.run())

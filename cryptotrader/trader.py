@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
 
 from cryptotrader.config import get_settings
 from cryptotrader.executor import TradeExecutor
@@ -15,9 +16,11 @@ logger = logging.getLogger(__name__)
 class Trader:
     def __init__(self, price_queue: asyncio.Queue[PriceTick],
                  tui_price_queue: asyncio.Queue | None = None,
-                 tui_trade_queue: asyncio.Queue | None = None) -> None:
+                 tui_trade_queue: asyncio.Queue | None = None,
+                 feed_healthy_fn: Callable[[], bool] | None = None) -> None:
         self._price_queue = price_queue
         self._tui_price_queue = tui_price_queue
+        self._feed_healthy_fn = feed_healthy_fn
         self._executor = TradeExecutor(tui_queue=tui_trade_queue)
         settings = get_settings()
         self._strategies: dict[str, list[Strategy]] = {}
@@ -43,6 +46,12 @@ class Trader:
             for strategy in self._strategies.get(tick.pair, []):
                 signal = strategy.evaluate(tick)
                 if signal is not None:
+                    if self._feed_healthy_fn is not None and not self._feed_healthy_fn():
+                        logger.warning(
+                            "Feed unhealthy — skipping order execution for %s @ %.2f",
+                            tick.pair, tick.last,
+                        )
+                        continue
                     band_width = getattr(strategy, "last_band_width", None)
                     await self._executor.execute(signal, tick.pair, tick.last, strategy.name,
                                                  band_width=band_width)

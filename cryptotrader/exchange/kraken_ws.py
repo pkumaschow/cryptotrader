@@ -181,14 +181,23 @@ class KrakenWebSocket:
             except (KeyError, TypeError, ValueError) as exc:
                 logger.debug("Failed to parse tick: %s — %s", item, exc)
 
+    def _elapsed_since_last_tick(self) -> float:
+        return asyncio.get_event_loop().time() - self._last_tick_time
+
+    def feed_healthy(self) -> bool:
+        """Return True if a tick was received within the stale_threshold window."""
+        if self._last_tick_time == 0.0:
+            return False
+        return self._elapsed_since_last_tick() < get_settings().websocket.stale_threshold
+
     async def _watchdog(self) -> None:
         settings = get_settings()
         threshold = settings.websocket.stale_threshold
         while self._running:
             await asyncio.sleep(threshold)
-            if self._last_tick_time == 0:
+            if self._last_tick_time == 0.0:
                 continue
-            elapsed = asyncio.get_event_loop().time() - self._last_tick_time
+            elapsed = self._elapsed_since_last_tick()
             logger.debug("Watchdog: elapsed=%.0fs threshold=%.0fs", elapsed, threshold)
             if elapsed > threshold:
                 logger.warning("Stale data: no tick in %.0fs — cancelling receive task", elapsed)
