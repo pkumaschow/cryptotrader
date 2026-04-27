@@ -1,12 +1,13 @@
 import asyncio
+from collections.abc import Callable
 from datetime import UTC, datetime
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from cryptotrader.config import get_settings
 from cryptotrader.db import database
-from cryptotrader.models import PriceTick
+from cryptotrader.models import PriceTick, Signal
 from cryptotrader.trader import Trader
 
 
@@ -112,3 +113,69 @@ async def test_trader_ignores_unknown_pair(test_config_path, tmp_path):
 
     # Should not raise
     await _run_one_tick(trader, make_tick(pair="XRP/USD"))
+
+
+# ── circuit breaker tests ─────────────────────────────────────────────────────
+
+def _make_trader_with_signal(feed_healthy_fn: Callable[[], bool] | None = None) -> Trader:
+    """Return a Trader wired with a mock strategy that always emits BUY."""
+    trader = Trader(price_queue=asyncio.Queue(), feed_healthy_fn=feed_healthy_fn)
+    mock_strategy = MagicMock()
+    mock_strategy.evaluate.return_value = Signal.BUY
+    mock_strategy.name = "mock"
+    trader._strategies = {"BTC/USD": [mock_strategy]}
+    return trader
+
+
+@pytest.mark.asyncio
+async def test_trader_skips_execute_when_feed_unhealthy(test_config_path, tmp_path):
+    """Circuit breaker: execute is NOT called when feed_healthy_fn returns False."""
+    db = str(tmp_path / "cb_unhealthy.db")
+    database.init_db(db)
+    with patch("cryptotrader.trader.get_settings") as ms, \
+         patch("cryptotrader.executor.get_settings") as me:
+        s = get_settings(test_config_path)
+        s.database.path = db
+        ms.return_value = s
+        me.return_value = s
+        trader = _make_trader_with_signal(feed_healthy_fn=lambda: False)
+        trader._executor.execute = AsyncMock()
+        await _run_one_tick(trader, make_tick())
+
+    trader._executor.execute.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_trader_calls_execute_when_feed_healthy(test_config_path, tmp_path):
+    """Circuit breaker: execute IS called when feed_healthy_fn returns True."""
+    db = str(tmp_path / "cb_healthy.db")
+    database.init_db(db)
+    with patch("cryptotrader.trader.get_settings") as ms, \
+         patch("cryptotrader.executor.get_settings") as me:
+        s = get_settings(test_config_path)
+        s.database.path = db
+        ms.return_value = s
+        me.return_value = s
+        trader = _make_trader_with_signal(feed_healthy_fn=lambda: True)
+        trader._executor.execute = AsyncMock(return_value=None)
+        await _run_one_tick(trader, make_tick())
+
+    trader._executor.execute.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_trader_calls_execute_when_no_feed_fn(test_config_path, tmp_path):
+    """Backward compat: no feed_healthy_fn means execute is always called."""
+    db = str(tmp_path / "cb_none.db")
+    database.init_db(db)
+    with patch("cryptotrader.trader.get_settings") as ms, \
+         patch("cryptotrader.executor.get_settings") as me:
+        s = get_settings(test_config_path)
+        s.database.path = db
+        ms.return_value = s
+        me.return_value = s
+        trader = _make_trader_with_signal(feed_healthy_fn=None)
+        trader._executor.execute = AsyncMock(return_value=None)
+        await _run_one_tick(trader, make_tick())
+
+    trader._executor.execute.assert_called_once()
