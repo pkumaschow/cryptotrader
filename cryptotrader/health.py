@@ -21,6 +21,10 @@ logger = logging.getLogger(__name__)
 
 _start_time = time.monotonic()
 
+CACHE_TTL = 10.0
+_cached_result: dict | None = None
+_cached_at: float = 0.0
+
 
 def _deployed_at() -> str:
     try:
@@ -29,6 +33,9 @@ def _deployed_at() -> str:
         return datetime.fromtimestamp(ts, tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     except Exception:
         return "unknown"
+
+
+_DEPLOYED_AT: str = _deployed_at()
 
 
 def _check_database(db_path: str) -> dict:
@@ -57,24 +64,28 @@ async def _check_kraken() -> dict:
 
 
 async def _handle_health(request: web.Request) -> web.Response:
+    global _cached_result, _cached_at
     from cryptotrader.config import get_settings
     settings = get_settings()
 
-    db_result, kraken_result = await asyncio.gather(
-        asyncio.to_thread(_check_database, settings.database.path),
-        _check_kraken(),
-    )
+    if _cached_result is None or time.monotonic() - _cached_at >= CACHE_TTL:
+        db_result, kraken_result = await asyncio.gather(
+            asyncio.to_thread(_check_database, settings.database.path),
+            _check_kraken(),
+        )
+        _cached_result = {"database": db_result, "kraken_api": kraken_result}
+        _cached_at = time.monotonic()
 
-    all_ok = db_result["status"] == "ok" and kraken_result["status"] == "ok"
+    all_ok = (
+        _cached_result["database"]["status"] == "ok"
+        and _cached_result["kraken_api"]["status"] == "ok"
+    )
     body = {
         "status": "ok" if all_ok else "degraded",
-        "deployed_at": _deployed_at(),
+        "deployed_at": _DEPLOYED_AT,
         "uptime_seconds": int(time.monotonic() - _start_time),
         "mode": settings.mode.active,
-        "checks": {
-            "database": db_result,
-            "kraken_api": kraken_result,
-        },
+        "checks": _cached_result,
     }
     return web.Response(
         text=json.dumps(body, indent=2),
