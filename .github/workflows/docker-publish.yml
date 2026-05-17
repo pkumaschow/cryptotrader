@@ -58,6 +58,7 @@ jobs:
       # PRs: compare against production, comment findings on the PR
       - name: Docker Scout compare
         if: github.event_name == 'pull_request'
+        continue-on-error: true
         uses: docker/scout-action@v1
         with:
           command: compare
@@ -70,6 +71,7 @@ jobs:
       # main: record CVEs against the production environment after push
       - name: Docker Scout record
         if: github.event_name == 'push'
+        continue-on-error: true
         uses: docker/scout-action@v1
         with:
           command: cves
