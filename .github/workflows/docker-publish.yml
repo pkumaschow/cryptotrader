@@ -36,7 +36,10 @@ jobs:
         with:
           context: .
           load: true
+          pull: true
           platforms: linux/amd64
+          build-args: |
+            APT_REFRESH=${{ github.run_id }}
           tags: pkumaschow/cryptotrader:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -48,7 +51,10 @@ jobs:
         with:
           context: .
           push: true
+          pull: true
           platforms: linux/amd64,linux/arm64
+          build-args: |
+            APT_REFRESH=${{ github.run_id }}
           tags: pkumaschow/cryptotrader:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
