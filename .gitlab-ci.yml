@@ -5,20 +5,14 @@ stages:
   - deploy
   - provenance
 
-variables:
-  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
-
-cache:
-  paths:
-    - .cache/pip
-
 lint:
   stage: lint
   image: python:3.11-slim
   tags: [cryptotrader]
   script:
-    - pip install --quiet ruff
-    - ruff check cryptotrader/ tests/
+    - pip install --quiet uv==0.11.6
+    - uv sync --frozen --extra dev
+    - uv run ruff check cryptotrader/ tests/
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push"'
 
@@ -27,8 +21,9 @@ test:
   image: python:3.11-slim
   tags: [cryptotrader]
   script:
-    - pip install --quiet -e ".[dev]"
-    - pytest tests/ -v --tb=short --cov=cryptotrader --cov-report=term-missing --cov-report=xml:coverage.xml --junitxml=report.xml
+    - pip install --quiet uv==0.11.6
+    - uv sync --frozen --extra dev
+    - uv run pytest tests/ -v --tb=short --cov=cryptotrader --cov-report=term-missing --cov-report=xml:coverage.xml --junitxml=report.xml
   coverage: '/TOTAL.*\s+(\d+%)$/'
   artifacts:
     reports:
