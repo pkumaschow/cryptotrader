@@ -14,4 +14,5 @@ coverage.xml
 dist/
 *.egg-info/
 .venv/
+docs/strategy-analysis*
 venv/
