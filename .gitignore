@@ -3,6 +3,8 @@
 *.db-shm
 *.db-wal
 *.lock
+!uv.lock
+!requirements.lock
 __pycache__/
 *.pyc
 *.pyo
