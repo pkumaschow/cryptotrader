@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
 from cryptotrader.config import BollingerParams, CurrencyConfig
-from cryptotrader.models import PriceTick, Signal
+from cryptotrader.models import Candle, PriceTick, Signal
 from cryptotrader.strategy.bollinger import BollingerStrategy
 
 
@@ -11,10 +11,42 @@ def make_tick(price: float, hour: int, minute: int = 0) -> PriceTick:
 
 
 def make_cfg(
-    period: int = 3, std_dev: float = 2.0, min_band_width_pct: float = 0.0
+    period: int = 3,
+    std_dev: float = 2.0,
+    min_band_width_pct: float = 0.0,
+    trend_filter_enabled: bool = False,
+    trend_ema_period: int = 3,
+    trend_timeframe_minutes: int = 240,
 ) -> CurrencyConfig:
-    params = BollingerParams(period=period, std_dev=std_dev, min_band_width_pct=min_band_width_pct)
+    params = BollingerParams(
+        period=period,
+        std_dev=std_dev,
+        min_band_width_pct=min_band_width_pct,
+        trend_filter_enabled=trend_filter_enabled,
+        trend_ema_period=trend_ema_period,
+        trend_timeframe_minutes=trend_timeframe_minutes,
+    )
     return CurrencyConfig(quantity=0.001, max_order_usd=500.0, bollinger=params)
+
+
+def trend_candles(closes: list[float]) -> list[Candle]:
+    """Build a chronological list of 4h trend candles with the given closes."""
+    return [
+        Candle(
+            pair="BTC/USD", timeframe=240, open=c, high=c, low=c, close=c,
+            tick_count=1, timestamp=datetime(2023, 12, 31, (i * 4) % 24, 0, tzinfo=UTC),
+        )
+        for i, c in enumerate(closes)
+    ]
+
+
+def drive_breakout(strategy: BollingerStrategy) -> Signal | None:
+    """Warm up flat, then spike inside the h5 candle to break the upper band at h6."""
+    for h in range(5):
+        strategy.evaluate(make_tick(50.0, h))
+    strategy.evaluate(make_tick(50.0, 5))
+    strategy.evaluate(make_tick(500.0, 5, minute=30))
+    return strategy.evaluate(make_tick(50.0, 6))
 
 
 def test_returns_none_during_warmup():
@@ -76,6 +108,39 @@ def test_min_band_width_allows_buy_when_met():
     strategy.evaluate(make_tick(500.0, 5, minute=30))
     result = strategy.evaluate(make_tick(50.0, 6))
     assert result == Signal.BUY
+
+
+def test_trend_filter_allows_buy_in_uptrend():
+    """With the filter on and a rising 4h trend EMA, a breakout still BUYs."""
+    strategy = BollingerStrategy(
+        make_cfg(period=3, std_dev=0.1, trend_filter_enabled=True, trend_ema_period=3)
+    )
+    strategy._trend_candles.load(trend_candles([10.0, 20.0, 30.0, 40.0]))
+    assert drive_breakout(strategy) == Signal.BUY
+
+
+def test_trend_filter_blocks_buy_in_downtrend():
+    """With the filter on and a falling 4h trend EMA, the same breakout is suppressed."""
+    strategy = BollingerStrategy(
+        make_cfg(period=3, std_dev=0.1, trend_filter_enabled=True, trend_ema_period=3)
+    )
+    strategy._trend_candles.load(trend_candles([400.0, 300.0, 200.0, 100.0]))
+    assert drive_breakout(strategy) is None
+
+
+def test_trend_filter_blocks_buy_during_warmup():
+    """With the filter on but too few 4h candles for the trend EMA, no BUY fires."""
+    strategy = BollingerStrategy(
+        make_cfg(period=3, std_dev=0.1, trend_filter_enabled=True, trend_ema_period=3)
+    )
+    assert drive_breakout(strategy) is None
+
+
+def test_trend_filter_off_by_default():
+    """Default config does not build a trend candle builder; behavior is unchanged."""
+    strategy = BollingerStrategy(make_cfg(period=3, std_dev=0.1))
+    assert strategy._trend_candles is None
+    assert drive_breakout(strategy) == Signal.BUY
 
 
 def test_strategy_name():

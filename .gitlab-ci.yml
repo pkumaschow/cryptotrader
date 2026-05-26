@@ -2,6 +2,7 @@ stages:
   - lint
   - test
   - docker
+  - security
   - deploy
   - provenance
 
@@ -56,6 +57,48 @@ docker:
       --destination "${REGISTRY_IMAGE}:latest"
       --insecure
       --skip-tls-verify
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+
+trivy-dep:
+  stage: security
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  tags: [cryptotrader]
+  variables:
+    TRIVY_CACHE_DIR: .trivycache/
+    TRIVY_NO_PROGRESS: "true"
+  script:
+    - trivy fs --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --scanners vuln "${CI_PROJECT_DIR}"
+  cache:
+    key: trivy-cache
+    paths:
+      - .trivycache/
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+
+trivy-scan:
+  stage: security
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  tags: [cryptotrader]
+  variables:
+    TRIVY_CACHE_DIR: .trivycache/
+    TRIVY_NO_PROGRESS: "true"
+    TRIVY_INSECURE: "true"
+  before_script:
+    - mkdir -p ~/.docker
+    - >
+      echo "{\"auths\":{\"${CI_REGISTRY}\":{\"username\":\"${CI_REGISTRY_USER}\",\"password\":\"${CI_REGISTRY_PASSWORD}\"}}}"
+      > ~/.docker/config.json
+  script:
+    - trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}"
+  cache:
+    key: trivy-cache
+    paths:
+      - .trivycache/
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push"'
 
