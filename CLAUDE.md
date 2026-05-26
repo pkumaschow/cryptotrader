@@ -29,7 +29,7 @@ strategy/
   base.py          Abstract Strategy — evaluate(tick) → Signal | None
   threshold.py     Buy/sell at fixed price levels
   ema.py           Dual EMA crossover + ATR volatility filter
-  bollinger.py     Bollinger Band breakout + min band-width filter
+  bollinger.py     Bollinger Band breakout + min band-width + optional 4h trend filter
   trend_pullback.py  Trend EMA + pullback EMA mean-reversion
   registry.py      Maps strategy name strings to classes
 config.py          Pydantic settings loaded from config/settings.toml
@@ -102,7 +102,10 @@ quantity = 0.001         # BTC per trade (test mode)
 # max_order_usd = 500   # production: hard cap per order
 
 [currencies."BTC/USD".bollinger]
-min_band_width_pct = 2.0  # minimum band width to allow a trade
+min_band_width_pct = 4.0      # minimum band width % to allow a trade (large-caps: 4.0; high-vol pairs: 2.0)
+trend_filter_enabled = true   # only buy breakouts when the higher-TF trend EMA is rising
+# trend_timeframe_minutes = 240  # trend candle timeframe (default 4h)
+# trend_ema_period = 50          # trend EMA period (default 50)
 ```
 
 **`.env`** — secrets, never committed (copy from `.env.example`):
@@ -125,11 +128,18 @@ All strategies implement `Strategy` (abstract base in `strategy/base.py`):
 |---|---|---|
 | `threshold` | Buy below trigger price, sell above | `buy_trigger`, `sell_trigger` |
 | `ema` | Fast/slow EMA crossover + ATR volatility filter | `fast_period`, `slow_period`, `atr_period`, `atr_min_pct` |
-| `bollinger` | Band breakout + min bandwidth guard | `period`, `std_dev`, `min_band_width_pct` |
+| `bollinger` | Band breakout + min bandwidth guard + optional higher-TF trend filter | `period`, `std_dev`, `min_band_width_pct`, `trend_filter_enabled`, `trend_timeframe_minutes`, `trend_ema_period` |
 | `trend_pullback` | Trend EMA + pullback EMA mean-reversion | `trend_ema_period`, `pullback_ema_period` |
 
 In **test mode** all four strategies run simultaneously per pair for comparison.
 In **production mode** only the strategy named in `settings.toml` runs.
+
+**Bollinger trend filter** (per-currency, default off): when `trend_filter_enabled = true`, a breakout
+BUY only fires if the trend EMA on a higher timeframe (`trend_timeframe_minutes`, default 240 = 4h;
+`trend_ema_period`, default 50) is rising. This suppresses breakouts bought into a flat/down market —
+the main loss source for low-volatility large-caps. Enable it for large-caps (BTC/ETH/SOL, also raised to
+`min_band_width_pct = 4.0`); leave it off for high-volatility pairs where backtests show it removes
+genuinely profitable breakouts. See `docs/strategy-analysis-2026-05-26-staging.md` for the analysis.
 
 Strategies that need candle history call `restore(db_path, pair)` on startup to reload from DB.
 

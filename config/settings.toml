@@ -22,8 +22,9 @@ buy_trigger = 65000.00
 sell_trigger = 68000.00
 
 [currencies."BTC/USD".bollinger]
-min_band_width_pct = 2.0
+min_band_width_pct = 4.0    # large-cap: stricter breakout filter cuts false-breakout chop losses
 fee_per_trade_usd = 0.60
+trend_filter_enabled = true # only buy breakouts when the 4h EMA50 trend is rising
 
 [currencies."ETH/USD"]
 strategy = "bollinger"
@@ -36,8 +37,9 @@ buy_trigger = 1900.00
 sell_trigger = 2050.00
 
 [currencies."ETH/USD".bollinger]
-min_band_width_pct = 2.0
+min_band_width_pct = 4.0    # large-cap: stricter breakout filter cuts false-breakout chop losses
 fee_per_trade_usd = 0.60
+trend_filter_enabled = true # only buy breakouts when the 4h EMA50 trend is rising
 
 [currencies."SOL/USD"]
 strategy = "bollinger"
@@ -49,5 +51,6 @@ buy_trigger = 120.00
 sell_trigger = 150.00
 
 [currencies."SOL/USD".bollinger]
-min_band_width_pct = 2.0
+min_band_width_pct = 4.0    # large-cap: stricter breakout filter cuts false-breakout chop losses
 fee_per_trade_usd = 0.60
+trend_filter_enabled = true # only buy breakouts when the 4h EMA50 trend is rising

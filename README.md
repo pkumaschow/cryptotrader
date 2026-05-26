@@ -34,6 +34,7 @@ Edit `config/settings.toml`:
 
 - `[mode] active` — `"test"` (paper trading, all 4 strategies) or `"production"` (live, single strategy per pair)
 - `[currencies."BTC/USD".threshold]` — price levels for the threshold strategy
+- `[currencies."BTC/USD".bollinger]` — `min_band_width_pct` (minimum band width % to trade; large-caps use `4.0`, high-volatility pairs `2.0`) and `trend_filter_enabled` (when `true`, only buy breakouts while the 4h EMA50 trend is rising — recommended for large-caps, off for high-volatility pairs)
 - See `config/settings.toml` for all available strategy parameters
 
 ## Running
