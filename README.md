@@ -124,6 +124,21 @@ bash deploy/deploy-local.sh           # deploy current working tree to Pi
 bash deploy/deploy-local.sh --skip-pull  # skip git pull step
 ```
 
+## Monitoring
+
+The bot serves a health endpoint (`/health` on port `8080`) that reports database and Kraken
+API status. A desktop-side watcher (`deploy/monitoring/kraken-monitor.sh`, run by a systemd
+`--user` timer every 5 minutes) polls that endpoint and raises an audio + desktop notification
+on failure or recovery. It distinguishes Kraken failures from database, bot-down, and
+Pi-unreachable conditions, and retries before alerting to suppress transient blips.
+
+```bash
+curl http://pihole.homelab.com:8080/health          # inspect health directly
+```
+
+See [docs/monitoring.md](docs/monitoring.md) for the health-endpoint schema, the monitor's
+failure-state model, configuration, and install steps.
+
 ## Supply Chain Security
 
 Every push generates a [SLSA Level 2](https://slsa.dev/spec/v1.0/levels) provenance attestation signed with a cosign key-pair. The provenance document and signature bundle are stored as pipeline artifacts.

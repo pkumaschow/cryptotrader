@@ -168,6 +168,10 @@ bash deploy/deploy-local.sh --skip-pull
 Ansible playbook at `deploy/playbook.yml`. Systemd service at `deploy/cryptotrader.service`.
 The service runs headless; use `--tui` from a terminal to monitor it live.
 
+**Health monitoring:** the bot serves `/health` on port `8080` (DB + Kraken checks). A
+desktop watcher (`deploy/monitoring/kraken-monitor.sh` + its systemd `--user` timer) polls
+that endpoint and fires audio/desktop alerts on failure. See `docs/monitoring.md`.
+
 **Docker / Podman:**
 
 ```bash
