@@ -2,9 +2,10 @@
 Entry point. Wires all components together and starts the asyncio event loop.
 
 Usage:
-    python -m cryptotrader.main          # headless (logs to stdout/journald)
-    python -m cryptotrader.main --tui    # with Textual TUI (starts trader)
-    python -m cryptotrader.main --tui    # monitor mode if service already running
+    python -m cryptotrader.main                       # headless (logs to stdout/journald)
+    python -m cryptotrader.main --tui                 # with Textual TUI (starts trader)
+    python -m cryptotrader.main --tui                 # monitor mode if service already running
+    python -m cryptotrader.main --monitor-only        # always monitor; never acquire lock or trade
 """
 from __future__ import annotations
 
@@ -159,6 +160,14 @@ async def _run(tui: bool, hidden_panels: set[str]) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="CryptoTrader")
     parser.add_argument("--tui", action="store_true", help="Launch interactive TUI")
+    parser.add_argument(
+        "--monitor-only",
+        action="store_true",
+        help=(
+            "Force read-only monitor mode; never acquire the instance lock "
+            "or start a Trader. Implies --tui."
+        ),
+    )
     parser.add_argument("--hide-prices", action="store_true", help="Hide live prices panel")
     parser.add_argument("--hide-weekly", action="store_true", help="Hide weekly summary panel")
     parser.add_argument("--hide-balance", action="store_true", help="Hide balance panel")
@@ -166,6 +175,11 @@ def main() -> None:
     parser.add_argument("--hide-trades", action="store_true", help="Hide trade log panel")
     parser.add_argument("--hide-stats", action="store_true", help="Hide stats panel")
     args = parser.parse_args()
+
+    # --monitor-only is pointless headless: force TUI so the user sees something.
+    if args.monitor_only:
+        args.tui = True
+
     _configure_logging(tui=args.tui)
 
     hidden_panels: set[str] = set()
@@ -183,6 +197,16 @@ def main() -> None:
         hidden_panels.add("stats-panel")
 
     settings = get_settings()
+
+    # Strict monitor mode: short-circuit before secrets check and before any lock
+    # acquisition. This is the rotator's path — it can never accidentally become the
+    # trader, regardless of whether cryptotrader.service is running.
+    if args.monitor_only:
+        try:
+            asyncio.run(_run_monitor(hidden_panels))
+        except KeyboardInterrupt:
+            pass
+        return
 
     if settings.mode.active == "production":
         secrets = get_secrets()
