@@ -237,4 +237,7 @@ provenance:
       - provenance.bundle
     expire_in: 1 year
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "push"'
+    # Provenance signing needs the protected COSIGN_* variables, which are only exposed on the
+    # protected `main` branch. Gate the job to main so it doesn't run (and fail) on MR/feature
+    # branches where those secrets are unavailable.
+    - if: '$CI_COMMIT_BRANCH == "main"'
