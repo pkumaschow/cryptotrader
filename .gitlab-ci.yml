@@ -3,8 +3,8 @@ stages:
   - test
   - docker
   - security
-  - deploy
   - provenance
+  - deploy
 
 lint:
   stage: lint
