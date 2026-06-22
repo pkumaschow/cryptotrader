@@ -2,6 +2,26 @@
 
 Python-based algorithmic trading bot for Kraken, with a live Textual TUI and SQLite trade log.
 
+## ⚠️ Risk Disclaimer
+
+**This software places real orders with real money.** In `production` mode CryptoTrader connects to
+your Kraken account with your API keys and executes live buy/sell trades automatically, without
+per-trade confirmation.
+
+- **You can lose money — potentially all of it.** Crypto markets are highly volatile and automated
+  trading is risky. Backtests and historical results in this repo are **not** indicative of future
+  performance.
+- **No warranty.** Provided "as is", without warranty of any kind (see [`LICENSE`](LICENSE)). The
+  authors are not liable for any financial loss, missed trade, bug, outage, or incorrect order.
+- **Not financial advice.** Nothing here is investment, financial, legal, or tax advice.
+- **You are responsible** for your API keys, funds, configuration, and strategy parameters, and for
+  complying with the laws and exchange terms that apply to you.
+- **Test first.** Run in `test` (paper-trading) mode and review the strategy logic before risking
+  real capital. Use only funds you can afford to lose.
+
+By running this software in production you accept full responsibility for all resulting trades and
+outcomes. Full text: [DISCLAIMER.md](DISCLAIMER.md).
+
 ## Setup
 
 ```bash
