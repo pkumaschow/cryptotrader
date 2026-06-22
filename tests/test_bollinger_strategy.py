@@ -17,6 +17,8 @@ def make_cfg(
     trend_filter_enabled: bool = False,
     trend_ema_period: int = 3,
     trend_timeframe_minutes: int = 240,
+    fee_per_trade_usd: float = 0.0,
+    stop_loss_pct: float = 0.0,
 ) -> CurrencyConfig:
     params = BollingerParams(
         period=period,
@@ -25,6 +27,8 @@ def make_cfg(
         trend_filter_enabled=trend_filter_enabled,
         trend_ema_period=trend_ema_period,
         trend_timeframe_minutes=trend_timeframe_minutes,
+        fee_per_trade_usd=fee_per_trade_usd,
+        stop_loss_pct=stop_loss_pct,
     )
     return CurrencyConfig(quantity=0.001, max_order_usd=500.0, bollinger=params)
 
@@ -141,6 +145,48 @@ def test_trend_filter_off_by_default():
     strategy = BollingerStrategy(make_cfg(period=3, std_dev=0.1))
     assert strategy._trend_candles is None
     assert drive_breakout(strategy) == Signal.BUY
+
+
+def test_stop_loss_exits_underwater_position_despite_profit_gate():
+    """Stop-loss cuts a losing position even when the small-profit gate would block the sell."""
+    strategy = BollingerStrategy(
+        make_cfg(period=3, std_dev=2.0, fee_per_trade_usd=0.60, stop_loss_pct=10.0)
+    )
+    strategy._in_position = True
+    strategy._entry_price = 100.0  # 10% stop -> exit at close <= 90
+    for h in range(5):
+        strategy.evaluate(make_tick(100.0, h))
+    strategy.evaluate(make_tick(100.0, 5))
+    strategy.evaluate(make_tick(80.0, 5, minute=30))  # h5 closes at 80 (-20%)
+    assert strategy.evaluate(make_tick(100.0, 6)) == Signal.SELL
+
+
+def test_disabled_stop_loss_holds_underwater_position():
+    """With stop-loss off (0.0) and a fee, the profit-gate blocks the loss -> position is held."""
+    strategy = BollingerStrategy(
+        make_cfg(period=3, std_dev=2.0, fee_per_trade_usd=0.60, stop_loss_pct=0.0)
+    )
+    strategy._in_position = True
+    strategy._entry_price = 100.0
+    for h in range(5):
+        strategy.evaluate(make_tick(100.0, h))
+    strategy.evaluate(make_tick(100.0, 5))
+    strategy.evaluate(make_tick(80.0, 5, minute=30))
+    assert strategy.evaluate(make_tick(100.0, 6)) is None
+
+
+def test_stop_loss_holds_above_threshold():
+    """A drawdown shallower than the stop % does not trigger an exit."""
+    strategy = BollingerStrategy(
+        make_cfg(period=3, std_dev=2.0, fee_per_trade_usd=0.60, stop_loss_pct=10.0)
+    )
+    strategy._in_position = True
+    strategy._entry_price = 100.0  # stop at 90
+    for h in range(5):
+        strategy.evaluate(make_tick(100.0, h))
+    strategy.evaluate(make_tick(100.0, 5))
+    strategy.evaluate(make_tick(95.0, 5, minute=30))  # -5%, above the 90 stop
+    assert strategy.evaluate(make_tick(100.0, 6)) is None
 
 
 def test_strategy_name():

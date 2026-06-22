@@ -10,14 +10,17 @@ python -m cryptotrader.main --tui
 
 `--tui` automatically selects the right mode based on whether the service is already running:
 
-| Situation | Mode | What starts |
-|-----------|------|-------------|
-| No service running | **Full** | Trader + WS + TUI |
-| Service already running | **Monitor** | Read-only WS + DB poller + TUI |
+| Flags | Mode | Behavior |
+|-------|------|----------|
+| `--tui` (no service running) | **Full** | Acquires lock; Trader + WS + TUI |
+| `--tui` (service running) | **Monitor** (fallback) | Lock-acquire fails; falls through to read-only WS + DB poller + TUI |
+| `--monitor-only --tui` | **Monitor** (strict) | Never attempts the lock; always read-only. Use this for any always-on display (e.g. the screen-rotator on the Pi). |
 
 **Full mode** — owns the instance lock, starts its own trader and WebSocket. Trades execute from this process. Use this when running the bot interactively without the systemd service.
 
-**Monitor mode** — detects that the service holds the lock and starts read-only. A separate WebSocket subscription provides live prices; a DB poller queries for new trades every 3 seconds and feeds them into the trade log. No strategies run, no orders are placed. Use this to observe a running service.
+**Monitor mode (fallback)** — `--tui` detects that the service holds the lock and starts read-only. A separate WebSocket subscription provides live prices; a DB poller queries for new trades every 3 seconds and feeds them into the trade log. No strategies run, no orders are placed.
+
+**Monitor mode (strict)** — `--monitor-only` refuses to acquire the lock under any circumstances and skips the production-secrets check entirely. Same monitor experience as the fallback, but with **zero possibility** of becoming the live trader through a startup race or service outage. Required for any process running alongside `cryptotrader.service` (see `docs/screen-rotator.md`).
 
 ```
 # Service running via systemd:
@@ -34,7 +37,7 @@ python -m cryptotrader.main --tui
 
 To display the TUI on a directly connected monitor (e.g. on the Pi itself), launch it on a virtual terminal via `openvt`:
 ```bash
-sudo openvt -c 1 -f -s -- tmux new-session -s cryptotrader 'cd /opt/cryptotrader && venv/bin/python -m cryptotrader.main --tui --hide-stats'
+sudo openvt -c 1 -f -s -- tmux new-session -s cryptotrader 'cd /opt/cryptotrader && venv/bin/python -m cryptotrader.main --monitor-only --tui --hide-stats'
 ```
 
 `-c 1` targets tty1, `-f` forces use of the VT even if in use, `-s` switches the display to it. The tmux session can still be attached from SSH:
