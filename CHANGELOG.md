@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Bollinger stop-loss: new per-currency `stop_loss_pct` (default `0.0` = disabled) exits a losing
+  position when price falls that percentage below entry, regardless of the small-profit sell gate —
+  preventing indefinite bag-holding in a downtrend. Left disabled in production pending a chosen
+  threshold.
+
 ## [1.1.0] - 2026-05-26
 
 ### Added

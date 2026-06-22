@@ -19,6 +19,7 @@ class BollingerStrategy(Strategy):
         self._std_dev = p.std_dev
         self._min_bw_pct = p.min_band_width_pct
         self._fee_per_trade = p.fee_per_trade_usd
+        self._stop_loss_pct = p.stop_loss_pct
         self._quantity = config.quantity
         self._candles = CandleBuilder(timeframe_minutes=60)
         self._trend_filter = p.trend_filter_enabled
@@ -94,6 +95,17 @@ class BollingerStrategy(Strategy):
                 self.last_band_width = round(curr_width, 4)
                 return Signal.BUY
         else:
+            # Stop-loss: cut a losing position regardless of the small-profit gate below.
+            # Without this, the gate blocks every loss-making exit and bags are held forever.
+            if (
+                self._stop_loss_pct > 0
+                and self._entry_price is not None
+                and last_close <= self._entry_price * (1 - self._stop_loss_pct / 100)
+            ):
+                self._in_position = False
+                self._entry_price = None
+                self.last_band_width = round(curr_width, 4)
+                return Signal.SELL
             if last_close < curr_mid:
                 if (
                     self._fee_per_trade > 0

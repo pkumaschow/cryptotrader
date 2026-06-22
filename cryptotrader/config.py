@@ -26,6 +26,9 @@ class BollingerParams(BaseModel):
     std_dev: float = 2.0
     min_band_width_pct: float = Field(default=0.0, ge=0.0)
     fee_per_trade_usd: float = Field(default=0.0, ge=0.0)
+    # Stop-loss: exit a losing position when close falls this % below entry, regardless of the
+    # small-profit gate. 0.0 = disabled. Prevents indefinite bag-holding in a downtrend.
+    stop_loss_pct: float = Field(default=0.0, ge=0.0)
     # Gate breakout entries on a rising higher-timeframe trend EMA. Off by default;
     # enable per-currency for trending large-caps, leave off for high-volatility pairs.
     trend_filter_enabled: bool = False
