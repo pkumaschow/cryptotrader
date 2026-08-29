@@ -1,0 +1,165 @@
+---
+- name: Deploy CryptoTrader to Raspberry Pi
+  hosts: pi
+  become: false
+
+  vars:
+    deploy_path: /opt/cryptotrader
+    service_name: cryptotrader
+    repo_root: "{{ playbook_dir }}/.."
+
+  tasks:
+    - name: Create cryptotrader system group
+      ansible.builtin.group:
+        name: cryptotrader
+        system: true
+      become: true
+
+    - name: Create cryptotrader system user
+      ansible.builtin.user:
+        name: cryptotrader
+        group: cryptotrader
+        system: true
+        shell: /sbin/nologin
+        home: /nonexistent
+        create_home: false
+      become: true
+
+    - name: Create deploy directory
+      ansible.builtin.file:
+        path: "{{ deploy_path }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: cryptotrader
+        mode: "0775"
+      become: true
+
+    - name: Sync project source
+      ansible.posix.synchronize:
+        src: "{{ repo_root }}/"
+        dest: "{{ deploy_path }}/"
+        delete: true
+        rsync_opts:
+          - "--exclude=.git"
+          - "--exclude=.venv"
+          - "--exclude=__pycache__"
+          - "--exclude=*.pyc"
+          - "--exclude=.env"
+          - "--exclude=cryptotrader.db"
+
+    - name: Create .env file if it does not exist
+      ansible.builtin.copy:
+        dest: "{{ deploy_path }}/.env"
+        content: |
+          # DO NOT enter real API keys here — this file is a placeholder only.
+          # Edit /opt/cryptotrader/.env directly on the Pi after deployment.
+          KRAKEN_API_KEY=
+          KRAKEN_API_SECRET=
+        force: false   # never overwrite an existing .env
+        owner: cryptotrader
+        group: cryptotrader
+        mode: "0600"
+      become: true
+
+    - name: Ensure .env has correct permissions
+      ansible.builtin.file:
+        path: "{{ deploy_path }}/.env"
+        owner: cryptotrader
+        group: cryptotrader
+        mode: "0600"
+      become: true
+
+    - name: Create Python virtualenv
+      ansible.builtin.command:
+        cmd: python3 -m venv "{{ deploy_path }}/venv"
+        creates: "{{ deploy_path }}/venv/bin/activate"
+
+    - name: Upgrade pip
+      ansible.builtin.pip:
+        name: pip
+        state: latest
+        virtualenv: "{{ deploy_path }}/venv"
+      register: pip_upgrade
+      changed_when: "'Successfully installed' in pip_upgrade.stdout"
+
+    - name: Install pinned dependencies from lock file
+      ansible.builtin.pip:
+        requirements: "{{ deploy_path }}/requirements.lock"
+        virtualenv: "{{ deploy_path }}/venv"
+
+    - name: Install project in editable mode
+      ansible.builtin.command:
+        cmd: "{{ deploy_path }}/venv/bin/pip install -e {{ deploy_path }} --no-deps"
+      changed_when: true
+
+    - name: Install litecli
+      ansible.builtin.pip:
+        name: litecli
+        state: latest
+        virtualenv: "{{ deploy_path }}/venv"
+
+    - name: Install systemd service file
+      ansible.builtin.copy:
+        src: "{{ deploy_path }}/deploy/{{ service_name }}.service"
+        dest: "/etc/systemd/system/{{ service_name }}.service"
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0644"
+      become: true
+      notify: Reload systemd
+
+    - name: Enforce database file permissions
+      ansible.builtin.file:
+        path: "{{ deploy_path }}/cryptotrader.db"
+        owner: cryptotrader
+        group: cryptotrader
+        mode: "0600"
+      become: true
+      ignore_errors: true  # file may not exist on first deploy
+
+    - name: Enable and start service
+      ansible.builtin.systemd:
+        name: "{{ service_name }}"
+        enabled: true
+        state: restarted
+        daemon_reload: true
+      become: true
+
+    - name: Show service status
+      ansible.builtin.command: systemctl status {{ service_name }} --no-pager
+      become: true
+      register: service_status
+      changed_when: false
+
+    - name: Print service status
+      ansible.builtin.debug:
+        msg: "{{ service_status.stdout_lines }}"
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+      become: true
+
+  post_tasks:
+    - name: Show trading statistics
+      ansible.builtin.command:
+        cmd: "{{ deploy_path }}/venv/bin/cryptotrader-stats"
+        chdir: "{{ deploy_path }}"
+      register: stats_output
+      changed_when: false
+      ignore_errors: true
+
+    - name: Print statistics
+      ansible.builtin.debug:
+        msg: "{{ stats_output.stdout_lines }}"
+      when: stats_output.rc == 0
+
+    - name: Show useful commands
+      ansible.builtin.debug:
+        msg:
+          - "Logs:    journalctl -fu {{ service_name }}"
+          - "Stats:   ssh {{ ansible_user }}@{{ ansible_host }} '{{ deploy_path }}/venv/bin/cryptotrader-stats'"
+          - "TUI:     ssh {{ ansible_user }}@{{ ansible_host }} 'cd {{ deploy_path }} && venv/bin/python -m cryptotrader.main --tui'"
+          - "DB:      ssh {{ ansible_user }}@{{ ansible_host }} '{{ deploy_path }}/venv/bin/litecli {{ deploy_path }}/cryptotrader.db --warn'"

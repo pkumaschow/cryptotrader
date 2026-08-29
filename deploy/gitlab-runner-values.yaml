@@ -1,0 +1,53 @@
+# GitLab Runner — k3s Helm values
+# Install (token passed via --set, never stored in this file):
+#   helm upgrade --install cryptotrader-runner gitlab/gitlab-runner \
+#     --namespace cryptotrader-runner --create-namespace \
+#     --values deploy/gitlab-runner-values.yaml \
+#     --set runnerToken=glrt-YOURTOKEN
+#
+# GitLab instance: http://gitlab.homelab.com
+# Cluster: mixed amd64/arm64 — runner pod and job pods pinned to amd64 nodes
+
+gitlabUrl: http://gitlab.homelab.com
+
+rbac:
+  create: true
+  serviceAccount:
+    create: true
+  rules:
+    - apiGroups: [""]
+      resources: ["pods", "pods/attach", "pods/exec", "pods/log", "secrets", "configmaps"]
+      verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
+
+# Pin the runner manager pod to amd64 nodes
+nodeSelector:
+  kubernetes.io/arch: amd64
+
+runners:
+  tags: "cryptotrader"
+  config: |
+    [[runners]]
+      [runners.kubernetes]
+        namespace       = "cryptotrader-runner"
+        image           = "python:3.11-slim"
+        # Use x86_64-latest to avoid version-specific tags that may not exist yet
+        helper_image    = "registry.gitlab.com/gitlab-org/gitlab-runner/gitlab-runner-helper:x86_64-latest"
+        pull_policy     = ["if-not-present", "always"]
+        cpu_request     = "100m"
+        memory_request  = "128Mi"
+        cpu_limit       = "500m"
+        memory_limit    = "512Mi"
+        # Pin job pods to amd64 nodes
+        [runners.kubernetes.node_selector]
+          "kubernetes.io/arch" = "amd64"
+
+concurrent: 4
+replicas: 1
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi

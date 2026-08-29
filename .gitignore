@@ -1,0 +1,26 @@
+.env
+*.db
+*.db-shm
+*.db-wal
+*.lock
+!uv.lock
+!requirements.lock
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+coverage.xml
+dist/
+*.egg-info/
+.venv/
+docs/strategy-analysis*
+# Per-deployment state, not code: holds this account's actual balances and a
+# prose record of its manual trades. Ship the .example file instead.
+config/reconciliation-baseline.json
+config/reconciliation-attribution.json
+deploy/inventory.ini
+venv/
+
+# Generated documentation site (scripts/build_docs.py)
+public/

@@ -1,0 +1,114 @@
+"""
+Lightweight HTTP health-check server.
+
+GET /health — JSON with deployment timestamp, uptime, DB status, Kraken API status.
+Returns 200 if all checks pass, 503 if any check fails.
+"""
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import os
+import sqlite3
+import time
+from datetime import UTC, datetime
+
+import aiohttp
+from aiohttp import web
+
+logger = logging.getLogger(__name__)
+
+_start_time = time.monotonic()
+
+CACHE_TTL = 10.0
+_cached_result: dict | None = None
+_cached_at: float = 0.0
+
+
+def _deployed_at() -> str:
+    try:
+        import cryptotrader
+        ts = os.path.getmtime(cryptotrader.__file__)
+        return datetime.fromtimestamp(ts, tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    except Exception:
+        return "unknown"
+
+
+_DEPLOYED_AT: str = _deployed_at()
+
+
+def _check_database(db_path: str) -> dict:
+    try:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=3)
+        conn.execute("SELECT 1")
+        conn.close()
+        return {"status": "ok"}
+    except Exception as exc:
+        return {"status": "error", "detail": str(exc)}
+
+
+async def _check_kraken() -> dict:
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                "https://api.kraken.com/0/public/SystemStatus",
+                timeout=aiohttp.ClientTimeout(total=5),
+            ) as resp:
+                resp.raise_for_status()
+                data = await resp.json()
+                kraken_status = data.get("result", {}).get("status", "unknown")
+                return {"status": "ok", "kraken_status": kraken_status}
+    except Exception as exc:
+        return {"status": "error", "detail": str(exc)}
+
+
+async def _handle_health(request: web.Request) -> web.Response:
+    global _cached_result, _cached_at
+    from cryptotrader.config import get_settings
+    settings = get_settings()
+
+    if _cached_result is None or time.monotonic() - _cached_at >= CACHE_TTL:
+        db_result, kraken_result = await asyncio.gather(
+            asyncio.to_thread(_check_database, settings.database.path),
+            _check_kraken(),
+        )
+        _cached_result = {"database": db_result, "kraken_api": kraken_result}
+        _cached_at = time.monotonic()
+
+    all_ok = (
+        _cached_result["database"]["status"] == "ok"
+        and _cached_result["kraken_api"]["status"] == "ok"
+    )
+    body = {
+        "status": "ok" if all_ok else "degraded",
+        "deployed_at": _DEPLOYED_AT,
+        "uptime_seconds": int(time.monotonic() - _start_time),
+        "mode": settings.mode.active,
+        "checks": _cached_result,
+    }
+    return web.Response(
+        text=json.dumps(body, indent=2),
+        content_type="application/json",
+        status=200 if all_ok else 503,
+    )
+
+
+async def run(port: int = 8080) -> None:
+    """Serve the health endpoint until cancelled.
+
+    Reports database and exchange connectivity only. It deliberately does not
+    claim the bot is trading sensibly — a stuck bot and a healthy idle one
+    look identical from here. That is what the daily check is for.
+    """
+    app = web.Application()
+    app.router.add_get("/health", _handle_health)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", port)  # noqa: S104
+    await site.start()
+    logger.info("Health check server listening on :%d/health", port)
+    try:
+        await asyncio.get_event_loop().create_future()
+    finally:
+        await runner.cleanup()

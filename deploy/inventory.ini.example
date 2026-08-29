@@ -1,0 +1,7 @@
+[pi]
+# Replace with your own host. Copy this file to inventory.ini.
+mypi ansible_host=192.0.2.10 ansible_user=youruser
+
+[pi:vars]
+ansible_python_interpreter=/usr/bin/python3
+deploy_path=/opt/cryptotrader

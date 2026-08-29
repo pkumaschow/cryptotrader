@@ -1,0 +1,13 @@
+[Unit]
+Description=Run the CryptoTrader daily invariant check each morning
+
+[Timer]
+# 08:47 rather than 09:00 — nothing here needs a round number, and off-peak
+# minutes keep it clear of everything else that fires on the hour.
+OnCalendar=*-*-* 08:47:00
+# The workstation is not always on at 08:47; run on next boot if a day was missed.
+Persistent=true
+RandomizedDelaySec=180
+
+[Install]
+WantedBy=timers.target

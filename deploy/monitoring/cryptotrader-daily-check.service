@@ -1,0 +1,10 @@
+[Unit]
+Description=CryptoTrader daily production invariant check (ledger, unbacked sells, stale positions)
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/cryptotrader-daily-check.sh
+TimeoutStartSec=300
+# rc=1 means "checks failed", which is a successful RUN. Only rc=2 (could not
+# run) should mark the unit failed.
+SuccessExitStatus=0 1

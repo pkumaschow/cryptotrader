@@ -1,0 +1,59 @@
+[mode]
+# "test"       — paper trading, runs ALL 4 strategies simultaneously for comparison
+# "production" — live trading using only the configured strategy per pair
+active = "production"
+max_daily_loss_usd = 75.00  # Circuit breaker: halt all trades once cumulative daily loss exceeds this amount
+
+[database]
+path = "cryptotrader.db"
+
+[websocket]
+stale_threshold = 30
+stats_refresh_interval = 5
+
+[currencies."BTC/USD"]
+strategy = "bollinger"
+quantity = 0.001
+budget_usd = 50.00      # Production: spend this USD amount per buy (sets quantity = budget_usd / price)
+max_order_usd = 500.00  # Production: hard cap — refuse any order exceeding this USD value
+
+[currencies."BTC/USD".threshold]
+buy_trigger = 65000.00
+sell_trigger = 68000.00
+
+[currencies."BTC/USD".bollinger]
+min_band_width_pct = 4.0    # large-cap: stricter breakout filter cuts false-breakout chop losses
+fee_per_trade_usd = 0.60
+trend_filter_enabled = true # only buy breakouts when the 4h EMA50 trend is rising
+stop_loss_pct = 10.0        # exit if close falls this % below entry — caps losses, stops indefinite bag-holding (0 = off)
+
+[currencies."ETH/USD"]
+strategy = "bollinger"
+quantity = 0.03
+budget_usd = 50.00      # Production: spend this USD amount per buy (sets quantity = budget_usd / price)
+max_order_usd = 500.00  # Production: hard cap — refuse any order exceeding this USD value
+
+[currencies."ETH/USD".threshold]
+buy_trigger = 1900.00
+sell_trigger = 2050.00
+
+[currencies."ETH/USD".bollinger]
+min_band_width_pct = 4.0    # large-cap: stricter breakout filter cuts false-breakout chop losses
+fee_per_trade_usd = 0.60
+trend_filter_enabled = true # only buy breakouts when the 4h EMA50 trend is rising
+stop_loss_pct = 10.0        # exit if close falls this % below entry — caps losses, stops indefinite bag-holding (0 = off)
+
+[currencies."SOL/USD"]
+strategy = "bollinger"
+quantity = 0.5
+max_order_usd = 500.00  # hard cap — refuse any order exceeding this USD value
+
+[currencies."SOL/USD".threshold]
+buy_trigger = 120.00
+sell_trigger = 150.00
+
+[currencies."SOL/USD".bollinger]
+min_band_width_pct = 4.0    # large-cap: stricter breakout filter cuts false-breakout chop losses
+fee_per_trade_usd = 0.60
+trend_filter_enabled = true # only buy breakouts when the 4h EMA50 trend is rising
+stop_loss_pct = 10.0        # exit if close falls this % below entry — caps losses, stops indefinite bag-holding (0 = off)

@@ -1,0 +1,30 @@
+[Unit]
+Description=Cryptocurrency Trading Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cryptotrader
+Group=cryptotrader
+WorkingDirectory=/opt/cryptotrader
+EnvironmentFile=-/opt/cryptotrader/.env
+ExecStart=/opt/cryptotrader/venv/bin/python -m cryptotrader.main
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/cryptotrader
+RestrictAddressFamilies=AF_INET AF_INET6
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

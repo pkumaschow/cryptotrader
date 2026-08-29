@@ -1,0 +1,7 @@
+[Unit]
+Description=CryptoTrader bot health monitor (queries the Pi's /health, alerts on failure)
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/kraken-monitor.sh
+TimeoutStartSec=90

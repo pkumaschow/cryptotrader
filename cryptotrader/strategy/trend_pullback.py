@@ -1,0 +1,103 @@
+"""Trend-following entries on a pullback.
+
+Requires the longer trend EMA to be rising, then buys when the shorter pullback
+EMA dips — entering on a retracement within an uptrend rather than chasing a
+breakout.
+"""
+
+from __future__ import annotations
+
+from cryptotrader.candles import CandleBuilder
+from cryptotrader.config import CurrencyConfig
+from cryptotrader.db import database
+from cryptotrader.models import PriceTick, Side, Signal
+from cryptotrader.strategy._indicators import ema
+from cryptotrader.strategy.base import Strategy
+
+
+class TrendPullbackStrategy(Strategy):
+    """Enter on a pullback within an established uptrend."""
+    @property
+    def name(self) -> str:
+        """Identifier written to the trade log, and the key used in config."""
+        return "trend_pullback"
+
+    def __init__(self, config: CurrencyConfig) -> None:
+        """Args:
+        config: Per-pair settings; strategy parameters are read from the
+        matching sub-table.
+        """
+        p = config.trend_pullback
+        self._trend_period = p.trend_ema_period
+        self._pullback_period = p.pullback_ema_period
+        self._candles_1h = CandleBuilder(timeframe_minutes=60)
+        self._candles_4h = CandleBuilder(timeframe_minutes=240)
+        self._in_position = False
+        self._db_path: str | None = None
+
+    def restore(self, db_path: str, pair: str) -> None:
+        """Rebuild indicator history and position state from the database.
+
+        Called once at startup. Without it a strategy would need hours of live
+        ticks before its indicators were usable, and would have forgotten whether
+        it holds a position.
+        """
+        self._db_path = db_path
+        candles_1h = database.query_candles(db_path, pair, 60, self._pullback_period + 10)
+        if candles_1h:
+            self._candles_1h.load(candles_1h)
+        candles_4h = database.query_candles(db_path, pair, 240, self._trend_period + 10)
+        if candles_4h:
+            self._candles_4h.load(candles_4h)
+        trades = database.query_trades(db_path, pair=pair, strategy=self.name)
+        if trades and trades[-1].side == Side.BUY:
+            self._in_position = True
+
+    def evaluate(self, tick: PriceTick) -> Signal | None:
+        """Decide on a completed candle.
+
+        Buys when the longer trend EMA is rising and the shorter pullback EMA
+        dips — a retracement inside an uptrend rather than a breakout.
+
+        Returns:
+        A signal to propose, or None. Most ticks return None — a decision is
+        only made when a candle completes.
+        """
+        completed_1h = self._candles_1h.add_tick(tick)
+        completed_4h = self._candles_4h.add_tick(tick)
+        if completed_1h is not None and self._db_path is not None:
+            database.insert_candle(self._db_path, completed_1h)
+        if completed_4h is not None and self._db_path is not None:
+            database.insert_candle(self._db_path, completed_4h)
+        if completed_1h is None:
+            return None
+        candles_4h = self._candles_4h.candles
+        candles_1h = self._candles_1h.candles
+        if len(candles_4h) < self._trend_period + 2:
+            return None
+        if len(candles_1h) < self._pullback_period + 2:
+            return None
+        closes_4h = [c.close for c in candles_4h]
+        trend_ema = ema(closes_4h, self._trend_period)
+        if len(trend_ema) < 2:
+            return None
+        trend_up = trend_ema[-1] > trend_ema[-2]
+        closes_1h = [c.close for c in candles_1h]
+        pb_ema = ema(closes_1h, self._pullback_period)
+        if len(pb_ema) < 2:
+            return None
+        curr_close = candles_1h[-1].close
+        prev_close = candles_1h[-2].close
+        curr_pb = pb_ema[-1]
+        prev_pb = pb_ema[-2]
+        if not self._in_position:
+            if trend_up and prev_close <= prev_pb and curr_close > curr_pb:
+                self._arm_rollback()
+                self._in_position = True
+                return Signal.BUY
+        else:
+            if not trend_up or curr_close < curr_pb:
+                self._arm_rollback()
+                self._in_position = False
+                return Signal.SELL
+        return None

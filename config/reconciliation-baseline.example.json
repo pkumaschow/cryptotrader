@@ -1,0 +1,17 @@
+{
+  "attribution": {
+    "XXBT": "Explain what this figure is before recording it. write_baseline.py refuses to run for any asset without an attribution, because freezing an unexplained discrepancy makes it permanent and invisible."
+  },
+  "divergence": {
+    "SOL": 0.0,
+    "XETH": 0.0,
+    "XXBT": 0.0
+  },
+  "ledger_floor": {
+    "BTC/USD": 0.0,
+    "ETH/USD": 0.0,
+    "SOL/USD": 0.0
+  },
+  "note": "Copy to reconciliation-baseline.json and generate with scripts/write_baseline.py. Records the gap between exchange balances and this bot's trade log at a point in time. The gap is expected to be non-zero \u2014 an account usually predates the bot and may carry manual trades. The check alerts on MOVEMENT away from these figures, not on their size.",
+  "recorded": "1970-01-01T00:00:00+00:00"
+}
