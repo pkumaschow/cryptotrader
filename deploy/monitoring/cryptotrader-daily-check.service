@@ -3,6 +3,11 @@ Description=CryptoTrader daily production invariant check (ledger, unbacked sell
 
 [Service]
 Type=oneshot
+# Deployment-specific settings (CRYPTOTRADER_SSH_HOST, CRYPTOTRADER_REMOTE_PATH,
+# CRYPTOTRADER_UNIT). Leading "-" so a missing file is not fatal. A systemd
+# --user unit inherits nothing from the login shell, so without this the check
+# falls back to the repo's placeholder host and cannot reach anything.
+EnvironmentFile=-%h/.config/cryptotrader/daily-check.env
 ExecStart=%h/.local/bin/cryptotrader-daily-check.sh
 TimeoutStartSec=300
 # rc=1 means "checks failed", which is a successful RUN. Only rc=2 (could not

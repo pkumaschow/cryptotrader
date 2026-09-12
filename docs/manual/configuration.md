@@ -99,5 +99,7 @@ KRAKEN_API_SECRET=...
 
 Required in production, ignored in test mode. Give the key **trade and query
 permissions only** — never withdrawal. If you intend to reconcile holdings
-against the exchange, also grant *Query Ledger Entries*, or deposits and
-transfers cannot be distinguished from accounting errors.
+against the exchange, also grant *Query Ledger Entries*. The daily check reads
+the ledger to absorb staking rewards; without it every weekly payout reads as
+drift and the check fails. Deposits, withdrawals and transfers still fail it by
+design — a withdrawal nobody made is exactly what it exists to catch.

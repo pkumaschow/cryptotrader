@@ -82,9 +82,10 @@ class AssetReconciliation:
     exchange: float
     ledger: float
     baseline: float | None
-    #: Non-bot fills since the baseline was recorded. The account is shared with
-    #: manual trading by decision (#35), so a discretionary trade is expected
-    #: divergence, not drift — alarming on it would make this check
+    #: Non-bot fills and staking rewards since the baseline was recorded. The
+    #: account is shared with manual trading by decision (#35), so a
+    #: discretionary trade is expected divergence, not drift — and so is a
+    #: reward Kraken's ledger names. Alarming on either would make this check
     #: permanently red again, which is the failure it exists to avoid.
     adjustment: float = 0.0
 
@@ -95,14 +96,14 @@ class AssetReconciliation:
 
     @property
     def expected(self) -> float | None:
-        """Divergence the baseline plus known manual trading accounts for."""
+        """Divergence the baseline plus manual trades and staking rewards account for."""
         if self.baseline is None:
             return None
         return self.baseline + self.adjustment
 
     @property
     def drift(self) -> float | None:
-        """Movement the baseline and manual trading together cannot explain."""
+        """Movement the baseline, manual trades and staking rewards cannot explain."""
         if self.expected is None:
             return None
         return self.divergence - self.expected
@@ -149,6 +150,29 @@ def manual_adjustment(movements: list[Movement], since: float,
     for m in movements:
         if not m.by_bot and m.timestamp > since and m.asset in out:
             out[m.asset] += m.amount
+    return out
+
+
+def reward_adjustment(entries: dict[str, dict], since: float,
+                      watch: tuple[str, ...]) -> dict[str, float]:
+    """Staking rewards credited after `since`, per asset, net of Kraken's cut.
+
+    Rewards land weekly with no fill behind them, so without this every payout
+    reads as drift and the check stays red until someone re-baselines by hand.
+    Kraken's ledger names them, which makes them explained rather than merely
+    tolerated. The balance moves by `amount - fee`: Kraken books the gross
+    reward and takes its commission as the fee.
+
+    Only `staking` is absorbed. A deposit, withdrawal or transfer is a person
+    acting on the account, and a withdrawal nobody made is exactly what this
+    check should fail on.
+    """
+    out: dict[str, float] = dict.fromkeys(watch, 0.0)
+    for entry in entries.values():
+        asset = entry.get("asset", "")
+        if (entry.get("type") == "staking" and asset in out
+                and float(entry.get("time", 0)) > since):
+            out[asset] += float(entry.get("amount", 0)) - float(entry.get("fee", 0))
     return out
 
 
@@ -332,8 +356,8 @@ def residuals(balances: dict[str, float], movements: list[Movement],
     """Balance left over after every known fill is accounted for.
 
     A non-zero residual is a movement that was not a trade — a deposit,
-    withdrawal, transfer or staking reward. Confirming which requires the
-    Ledgers endpoint, which this API key is not currently permitted to call.
+    withdrawal, transfer or staking reward. Kraken's Ledgers endpoint says
+    which, and `reward_adjustment` absorbs the staking share of it.
     """
     moved: dict[str, float] = {}
     for m in movements:

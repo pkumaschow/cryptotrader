@@ -302,6 +302,16 @@ async def main():
             fills.update(batch); ofs += len(batch)
             if not batch or ofs >= int(page.get("count", 0)):
                 break
+        ledger, ledger_error, ofs = {}, None, 0
+        try:
+            while True:
+                page = await c._post("Ledgers", {"ofs": str(ofs)})
+                batch = page.get("ledger") or {}
+                ledger.update(batch); ofs += len(batch)
+                if not batch or ofs >= int(page.get("count", 0)):
+                    break
+        except Exception as exc:
+            ledger, ledger_error = None, f"{type(exc).__name__}: {exc}"
     finally:
         await c.close()
     with urllib.request.urlopen(
@@ -313,7 +323,8 @@ async def main():
         if info.get("altname"):
             pairs[info["altname"]] = [info["base"], info["quote"]]
     print(json.dumps({"balances": {k: v for k, v in b.items() if v},
-                      "fills": fills, "pairs": pairs}))
+                      "fills": fills, "pairs": pairs,
+                      "ledger": ledger, "ledger_error": ledger_error}))
 
 asyncio.run(main())
 """
@@ -356,8 +367,12 @@ def check_ledger_vs_exchange(db: Path, baseline_path: str) -> Check:
     trade would turn this check permanently red, which is the exact failure it
     exists to avoid. Until #38 lands, manual trades stay outside the trade log
     and this is what keeps the check honest.
+
+    Staking rewards are absorbed the same way, from Kraken's ledger. They are
+    the only non-trade movement that is: a deposit, withdrawal or transfer
+    still fails, because a withdrawal nobody made is the thing to catch.
     """
-    from cryptotrader.reconcile import load_baseline, reconcile
+    from cryptotrader.reconcile import load_baseline, reconcile, reward_adjustment
 
     try:
         state = fetch_exchange_state()
@@ -372,7 +387,7 @@ def check_ledger_vs_exchange(db: Path, baseline_path: str) -> Check:
                           load_ledger_floor(baseline_path)} or balances))
 
     adjustment: dict[str, float] = {}
-    manual_note = ""
+    notes = ""
     if baseline:
         pairs = {k: (v[0], v[1]) for k, v in state.get("pairs", {}).items()}
         bot_txids = _bot_order_txids(db)
@@ -381,9 +396,22 @@ def check_ledger_vs_exchange(db: Path, baseline_path: str) -> Check:
         adjustment = manual_adjustment(movements, since, watch)
         applied = {a: v for a, v in adjustment.items() if abs(v) > 1e-12}
         if applied:
-            manual_note = ("  Manual trades since the baseline, absorbed: "
-                           + ", ".join(f"{a} {v:+.8f}" for a, v in sorted(applied.items()))
-                           + " (see #38)")
+            notes += ("  Manual trades since the baseline, absorbed: "
+                      + ", ".join(f"{a} {v:+.8f}" for a, v in sorted(applied.items()))
+                      + " (see #38)")
+        # An unreadable ledger leaves rewards unexplained, so the check fails on
+        # them — honestly, with the cause named rather than as bare drift.
+        if state.get("ledger") is None:
+            notes += ("  Staking rewards NOT attributed, ledger unreadable: "
+                      + (state.get("ledger_error") or "no ledger in the exchange read"))
+        else:
+            rewards = reward_adjustment(state["ledger"], since, watch)
+            for asset, amount in rewards.items():
+                adjustment[asset] = adjustment.get(asset, 0.0) + amount
+            earned = {a: v for a, v in rewards.items() if abs(v) > 1e-12}
+            if earned:
+                notes += ("  Staking rewards since the baseline, absorbed: "
+                          + ", ".join(f"{a} {v:+.8f}" for a, v in sorted(earned.items())))
 
     results = reconcile(str(db), balances, baseline, adjustment=adjustment)
     if not results:
@@ -403,10 +431,10 @@ def check_ledger_vs_exchange(db: Path, baseline_path: str) -> Check:
 
     if [r for r in results if not r.is_ok()]:
         return Check("ledger_matches_exchange", False,
-                     f"divergence MOVED beyond what the baseline and known "
-                     f"manual trading explain: {detail}{manual_note}")
+                     f"divergence MOVED beyond what the baseline, manual trades "
+                     f"and staking rewards explain: {detail}{notes}")
     return Check("ledger_matches_exchange", True,
-                 f"divergence as expected: {detail}{manual_note}")
+                 f"divergence as expected: {detail}{notes}")
 
 
 def _bot_order_txids(db: Path) -> set[str]:

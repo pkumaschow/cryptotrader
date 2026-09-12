@@ -428,3 +428,94 @@ def test_baseline_recorded_timestamp_parses(tmp_path):
     save(path, [], recorded="2026-08-27T12:31:40+00:00")
     assert load_baseline_recorded(path) > 0
     assert load_baseline_recorded(tmp_path / "absent.json") == 0.0
+
+
+# --- staking-reward absorption ------------------------------------------
+
+from cryptotrader.reconcile import reward_adjustment  # noqa: E402
+
+
+def _entry(kind, asset, amount, fee=0.0, t=200.0):
+    return {"type": kind, "subtype": "", "asset": asset, "amount": str(amount),
+            "fee": str(fee), "time": t}
+
+
+def test_staking_rewards_after_the_baseline_are_absorbed_net_of_fee(db):
+    """The live case: the 2026-09-03 SOL reward.
+
+    0.00089321 gross with a 0.00026796 fee moved the balance by exactly the
+    difference. Absorbing the gross figure would leave the fee as fake drift on
+    every payout.
+    """
+    _trade(db, "SOL/USD", Side.BUY, 0.5)
+    entries = {"L1": _entry("staking", "SOL", 0.00089321, fee=0.00026796)}
+    adj = reward_adjustment(entries, since=100.0, watch=("SOL",))
+    assert adj["SOL"] == pytest.approx(0.00062525, abs=1e-12)
+
+    results = reconcile(db, {"SOL": 0.50062525}, baseline={"SOL": 0.0}, adjustment=adj)
+    assert results[0].is_ok(), "a staking reward must not trip the check"
+
+
+def test_staking_rewards_before_the_baseline_are_not_double_counted():
+    """They are already inside the recorded figure."""
+    entries = {"L1": _entry("staking", "SOL", 0.001, t=50.0)}
+    assert reward_adjustment(entries, since=100.0, watch=("SOL",))["SOL"] == 0.0
+
+
+def test_rewards_on_unwatched_assets_are_ignored():
+    """BABY is staked on this account but never traded by the bot."""
+    entries = {"L1": _entry("staking", "BABY", 0.02)}
+    assert reward_adjustment(entries, since=100.0, watch=("SOL",)) == {"SOL": 0.0}
+
+
+@pytest.mark.parametrize("kind", ["deposit", "withdrawal", "transfer", "trade",
+                                  "receive", "spend", "adjustment"])
+def test_only_staking_is_absorbed(db, kind):
+    """A withdrawal nobody made is exactly what this check must fail on."""
+    _trade(db, "SOL/USD", Side.BUY, 0.5)
+    entries = {"L1": _entry(kind, "SOL", -0.25)}
+    adj = reward_adjustment(entries, since=100.0, watch=("SOL",))
+    assert adj["SOL"] == 0.0
+
+    results = reconcile(db, {"SOL": 0.25}, baseline={"SOL": 0.0}, adjustment=adj)
+    assert not results[0].is_ok()
+
+
+def _exchange_state(balances, ledger, ledger_error=None):
+    return {"balances": balances, "fills": {}, "pairs": {},
+            "ledger": ledger, "ledger_error": ledger_error}
+
+
+def _baseline_file(tmp_path, divergence):
+    path = tmp_path / "baseline.json"
+    path.write_text(json.dumps({
+        "divergence": divergence, "ledger_floor": {"SOL/USD": 0.0},
+        "recorded": "2026-08-27T12:33:32+00:00"}))
+    return str(path)
+
+
+def test_daily_check_goes_green_on_a_staking_reward(db, tmp_path, monkeypatch):
+    """Wiring, not just arithmetic: the check itself must absorb the reward."""
+    import scripts.daily_check as dc
+
+    _trade(db, "SOL/USD", Side.BUY, 0.5)
+    ledger = {"L1": _entry("staking", "SOL", 0.00089321, fee=0.00026796, t=2e9)}
+    monkeypatch.setattr(dc, "fetch_exchange_state",
+                        lambda: _exchange_state({"SOL": 0.50062525}, ledger))
+
+    check = dc.check_ledger_vs_exchange(db, _baseline_file(tmp_path, {"SOL": 0.0}))
+    assert check.ok, check.detail
+    assert "Staking rewards since the baseline, absorbed: SOL +0.00062525" in check.detail
+
+
+def test_unreadable_ledger_fails_with_the_reason_named(db, tmp_path, monkeypatch):
+    """Losing the permission must not turn the check green, or hide why it is red."""
+    import scripts.daily_check as dc
+
+    _trade(db, "SOL/USD", Side.BUY, 0.5)
+    monkeypatch.setattr(dc, "fetch_exchange_state", lambda: _exchange_state(
+        {"SOL": 0.50062525}, None, "RuntimeError: ['EGeneral:Permission denied']"))
+
+    check = dc.check_ledger_vs_exchange(db, _baseline_file(tmp_path, {"SOL": 0.0}))
+    assert not check.ok
+    assert "EGeneral:Permission denied" in check.detail

@@ -51,7 +51,26 @@ rsync -avz --delete \
   --exclude='.env' \
   --exclude='cryptotrader.db*' \
   --exclude='cryptotrader.lock' \
+  --exclude='tests' \
+  --exclude='docs' \
+  --exclude='Plans' \
+  --exclude='.github' \
+  --exclude='public' \
+  --exclude='.pytest_cache' \
+  --exclude='.ruff_cache' \
+  --exclude='.coverage' \
   "${REPO_ROOT}/" "${PI_USER}@${PI_HOST}:${DEPLOY_PATH}/"
+
+echo "==> Removing non-runtime directories left by earlier deploys"
+# rsync --delete protects excluded paths, so previously-synced copies persist.
+# --delete-excluded would also delete .env and cryptotrader.db, which are
+# excluded for the opposite reason — so remove only these known paths.
+ssh "${PI_USER}@${PI_HOST}" "
+  set -e
+  for d in tests docs Plans .github public .pytest_cache .ruff_cache; do
+    sudo rm -rf ${DEPLOY_PATH:?}/\$d
+  done
+"
 
 echo ""
 echo "==> Installing dependencies on Pi..."
