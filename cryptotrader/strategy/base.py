@@ -43,8 +43,14 @@ class Strategy(ABC):
             refused order will leave it describing a position it does not hold.
         """
 
-    def restore(self, db_path: str, pair: str) -> None:  # noqa: B027
-        """Reload candle history and position state from DB. No-op by default."""
+    def restore(self, db_path: str, pair: str, *, mode: str) -> None:  # noqa: B027
+        """Reload candle history and position state from DB. No-op by default.
+
+        Only trades of `mode` may count toward position state. Paper and live
+        trades share the trade log, so an unfiltered read lets a later test-mode
+        buy seed a production position at a price nobody paid (#26). Required,
+        not defaulted: assuming a mode is the bug.
+        """
 
     def _arm_rollback(self) -> None:
         """Snapshot position state. Call immediately BEFORE mutating it."""

@@ -23,7 +23,7 @@ sell_trigger = 68000.00
 
 [currencies."BTC/USD".bollinger]
 min_band_width_pct = 4.0    # large-cap: stricter breakout filter cuts false-breakout chop losses
-fee_per_trade_usd = 0.60
+fee_pct = 0.80              # Kraken taker fee, % of notional per leg — a mid-band exit must clear both legs (0 = gate off)
 trend_filter_enabled = true # only buy breakouts when the 4h EMA50 trend is rising
 stop_loss_pct = 10.0        # exit if close falls this % below entry — caps losses, stops indefinite bag-holding (0 = off)
 
@@ -39,7 +39,7 @@ sell_trigger = 2050.00
 
 [currencies."ETH/USD".bollinger]
 min_band_width_pct = 4.0    # large-cap: stricter breakout filter cuts false-breakout chop losses
-fee_per_trade_usd = 0.60
+fee_pct = 0.80              # Kraken taker fee, % of notional per leg — a mid-band exit must clear both legs (0 = gate off)
 trend_filter_enabled = true # only buy breakouts when the 4h EMA50 trend is rising
 stop_loss_pct = 10.0        # exit if close falls this % below entry — caps losses, stops indefinite bag-holding (0 = off)
 
@@ -54,6 +54,6 @@ sell_trigger = 150.00
 
 [currencies."SOL/USD".bollinger]
 min_band_width_pct = 4.0    # large-cap: stricter breakout filter cuts false-breakout chop losses
-fee_per_trade_usd = 0.60
+fee_pct = 0.80              # Kraken taker fee, % of notional per leg — a mid-band exit must clear both legs (0 = gate off)
 trend_filter_enabled = true # only buy breakouts when the 4h EMA50 trend is rising
 stop_loss_pct = 10.0        # exit if close falls this % below entry — caps losses, stops indefinite bag-holding (0 = off)

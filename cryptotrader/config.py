@@ -15,7 +15,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field, SecretStr, field_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -43,14 +43,16 @@ class BollingerParams(BaseModel):
     Two of these decide whether the strategy can lose money indefinitely.
     `stop_loss_pct` at 0 disables the only exit that can realize a loss — the
     small-profit gate blocks the others — so a losing position is held until it
-    recovers or you intervene. `fee_per_trade_usd` is a flat figure while real
-    fees are a percentage of notional, so it is only correct at one position
-    size; revisit it whenever position size changes.
+    recovers or you intervene. `fee_pct` is the exchange fee per leg as a
+    percentage of notional; the gate blocks a mid-band exit that would not clear
+    both legs, and since the fee scales with the position, position size does
+    not move that hurdle.
     """
     period: int = 20
     std_dev: float = 2.0
     min_band_width_pct: float = Field(default=0.0, ge=0.0)
-    fee_per_trade_usd: float = Field(default=0.0, ge=0.0)
+    # Percent of notional per leg — Kraken taker is 0.80. 0.0 disables the gate.
+    fee_pct: float = Field(default=0.0, ge=0.0, le=5.0)
     # Stop-loss: exit a losing position when close falls this % below entry, regardless of the
     # small-profit gate. 0.0 = disabled. Prevents indefinite bag-holding in a downtrend.
     stop_loss_pct: float = Field(default=0.0, ge=0.0)
@@ -59,6 +61,22 @@ class BollingerParams(BaseModel):
     trend_filter_enabled: bool = False
     trend_timeframe_minutes: int = 240
     trend_ema_period: int = 50
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_flat_fee(cls, data: Any) -> Any:
+        """Refuse the retired flat-fee key rather than silently dropping it.
+
+        Pydantic ignores unknown keys, so an old config carrying
+        `fee_per_trade_usd` would load with `fee_pct` at 0 — the gate quietly
+        switched off, releasing exits that do not cover their fees (#25).
+        """
+        if isinstance(data, dict) and "fee_per_trade_usd" in data:
+            raise ValueError(
+                "fee_per_trade_usd was replaced by fee_pct: the exchange fee per leg "
+                "as a percentage of notional (Kraken taker is 0.80). A flat figure is "
+                "only right at one position size (#25).")
+        return data
 
 
 class TrendPullbackParams(BaseModel):

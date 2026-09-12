@@ -47,9 +47,8 @@ class BollingerStrategy(Strategy):
         self._period = p.period
         self._std_dev = p.std_dev
         self._min_bw_pct = p.min_band_width_pct
-        self._fee_per_trade = p.fee_per_trade_usd
+        self._fee_pct = p.fee_pct
         self._stop_loss_pct = p.stop_loss_pct
-        self._quantity = config.quantity
         self._candles = CandleBuilder(timeframe_minutes=60)
         self._trend_filter = p.trend_filter_enabled
         self._trend_period = p.trend_ema_period
@@ -62,7 +61,7 @@ class BollingerStrategy(Strategy):
         self._db_path: str | None = None
         self.last_band_width: float | None = None
 
-    def restore(self, db_path: str, pair: str) -> None:
+    def restore(self, db_path: str, pair: str, *, mode: str) -> None:
         """Rebuild indicator history and position state from the database.
 
         Called once at startup. Without it a strategy would need hours of live
@@ -79,7 +78,7 @@ class BollingerStrategy(Strategy):
             )
             if trend_candles:
                 self._trend_candles.load(trend_candles)
-        trades = database.query_trades(db_path, pair=pair, strategy=self.name)
+        trades = database.query_trades(db_path, pair=pair, mode=mode, strategy=self.name)
         if trades and trades[-1].side == Side.BUY:
             self._in_position = True
             self._entry_price = trades[-1].price
@@ -156,10 +155,13 @@ class BollingerStrategy(Strategy):
                 self.last_band_width = round(curr_width, 4)
                 return Signal.SELL
             if last_close < curr_mid:
+                # The fee is a percentage of each leg's notional, so position size
+                # cancels out: the move itself must beat both legs' fee (#25).
                 if (
-                    self._fee_per_trade > 0
+                    self._fee_pct > 0
                     and self._entry_price is not None
-                    and (last_close - self._entry_price) * self._quantity < self._fee_per_trade * 2
+                    and last_close - self._entry_price
+                    < (last_close + self._entry_price) * self._fee_pct / 100
                 ):
                     return None
                 self._arm_rollback()

@@ -17,7 +17,7 @@ def make_cfg(
     trend_filter_enabled: bool = False,
     trend_ema_period: int = 3,
     trend_timeframe_minutes: int = 240,
-    fee_per_trade_usd: float = 0.0,
+    fee_pct: float = 0.0,
     stop_loss_pct: float = 0.0,
 ) -> CurrencyConfig:
     params = BollingerParams(
@@ -27,7 +27,7 @@ def make_cfg(
         trend_filter_enabled=trend_filter_enabled,
         trend_ema_period=trend_ema_period,
         trend_timeframe_minutes=trend_timeframe_minutes,
-        fee_per_trade_usd=fee_per_trade_usd,
+        fee_pct=fee_pct,
         stop_loss_pct=stop_loss_pct,
     )
     return CurrencyConfig(quantity=0.001, max_order_usd=500.0, bollinger=params)
@@ -150,7 +150,7 @@ def test_trend_filter_off_by_default():
 def test_stop_loss_exits_underwater_position_despite_profit_gate():
     """Stop-loss cuts a losing position even when the small-profit gate would block the sell."""
     strategy = BollingerStrategy(
-        make_cfg(period=3, std_dev=2.0, fee_per_trade_usd=0.60, stop_loss_pct=10.0)
+        make_cfg(period=3, std_dev=2.0, fee_pct=0.60, stop_loss_pct=10.0)
     )
     strategy._in_position = True
     strategy._entry_price = 100.0  # 10% stop -> exit at close <= 90
@@ -164,7 +164,7 @@ def test_stop_loss_exits_underwater_position_despite_profit_gate():
 def test_disabled_stop_loss_holds_underwater_position():
     """With stop-loss off (0.0) and a fee, the profit-gate blocks the loss -> position is held."""
     strategy = BollingerStrategy(
-        make_cfg(period=3, std_dev=2.0, fee_per_trade_usd=0.60, stop_loss_pct=0.0)
+        make_cfg(period=3, std_dev=2.0, fee_pct=0.60, stop_loss_pct=0.0)
     )
     strategy._in_position = True
     strategy._entry_price = 100.0
@@ -178,7 +178,7 @@ def test_disabled_stop_loss_holds_underwater_position():
 def test_stop_loss_holds_above_threshold():
     """A drawdown shallower than the stop % does not trigger an exit."""
     strategy = BollingerStrategy(
-        make_cfg(period=3, std_dev=2.0, fee_per_trade_usd=0.60, stop_loss_pct=10.0)
+        make_cfg(period=3, std_dev=2.0, fee_pct=0.60, stop_loss_pct=10.0)
     )
     strategy._in_position = True
     strategy._entry_price = 100.0  # stop at 90
@@ -191,3 +191,70 @@ def test_stop_loss_holds_above_threshold():
 
 def test_strategy_name():
     assert BollingerStrategy(make_cfg()).name == "bollinger"
+
+
+# --- exit fee gate (#25) -------------------------------------------------
+
+import tomllib  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+import pytest  # noqa: E402
+from pydantic import ValidationError  # noqa: E402
+
+
+def exit_at(close: float, fee_pct: float = 0.80, quantity: float = 0.001) -> Signal | None:
+    """Hold from entry 100, then complete a candle closing at `close`, below the mid band."""
+    cfg = make_cfg(period=3, std_dev=2.0, fee_pct=fee_pct).model_copy(
+        update={"quantity": quantity})
+    strategy = BollingerStrategy(cfg)
+    strategy._in_position = True
+    strategy._entry_price = 100.0
+    for h in range(5):
+        strategy.evaluate(make_tick(110.0, h))
+    strategy.evaluate(make_tick(110.0, 5))
+    strategy.evaluate(make_tick(close, 5, minute=30))
+    return strategy.evaluate(make_tick(110.0, 6))
+
+
+def test_gate_releases_an_exit_that_clears_both_percentage_legs():
+    """Entry 100, close 101.70: a 1.70 move against 1.61 of fees (0.80% of 201.70)."""
+    assert exit_at(101.70) == Signal.SELL
+
+
+def test_gate_holds_an_exit_that_does_not_clear_both_legs():
+    """Close 101.50: a 1.50 move against 1.61 of fees — selling would lose money."""
+    assert exit_at(101.50) is None
+
+
+@pytest.mark.parametrize("quantity", [0.0001, 0.001, 0.5, 10.0])
+def test_gate_decision_does_not_depend_on_position_size(quantity):
+    """The old gate used the config lot, overstating BTC holdings by 61% (#25).
+
+    A percentage fee scales with the position, so size cancels out and must not
+    move the decision either way.
+    """
+    assert exit_at(101.70, quantity=quantity) == Signal.SELL
+    assert exit_at(101.50, quantity=quantity) is None
+
+
+def test_zero_fee_disables_the_gate():
+    assert exit_at(100.10, fee_pct=0.0) == Signal.SELL
+
+
+def test_the_retired_flat_fee_key_is_refused_not_ignored():
+    """Ignoring it would load fee_pct at 0 — the gate silently off."""
+    with pytest.raises(ValidationError, match="fee_pct"):
+        BollingerParams(fee_per_trade_usd=0.60)
+
+
+def test_shipped_production_config_keeps_the_gate_on():
+    """The key migration must not switch the gate off for any live pair."""
+    path = Path(__file__).resolve().parent.parent / "config" / "settings.toml"
+    raw = tomllib.loads(path.read_text())
+    bollinger_pairs = {
+        pair: CurrencyConfig(**cfg) for pair, cfg in raw["currencies"].items()
+        if cfg.get("strategy") == "bollinger"
+    }
+    assert bollinger_pairs, "precondition: production trades bollinger"
+    for pair, cfg in bollinger_pairs.items():
+        assert cfg.bollinger.fee_pct == pytest.approx(0.80), pair

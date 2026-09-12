@@ -36,7 +36,7 @@ class EMAStrategy(Strategy):
         self._in_position = False
         self._db_path: str | None = None
 
-    def restore(self, db_path: str, pair: str) -> None:
+    def restore(self, db_path: str, pair: str, *, mode: str) -> None:
         """Rebuild indicator history and position state from the database.
 
         Called once at startup. Without it a strategy would need hours of live
@@ -47,7 +47,7 @@ class EMAStrategy(Strategy):
         candles = database.query_candles(db_path, pair, 60, self._slow + 10)
         if candles:
             self._candles.load(candles)
-        trades = database.query_trades(db_path, pair=pair, strategy=self.name)
+        trades = database.query_trades(db_path, pair=pair, mode=mode, strategy=self.name)
         if trades and trades[-1].side == Side.BUY:
             self._in_position = True
 

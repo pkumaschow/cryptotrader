@@ -48,7 +48,7 @@ One block per traded pair.
 | `period` | `20` | Candles in the moving average. |
 | `std_dev` | `2.0` | Band width in standard deviations. |
 | `min_band_width_pct` | `0.0` | Refuse entries when the bands are narrower than this % of the middle band. Suppresses false breakouts in quiet markets. |
-| `fee_per_trade_usd` | `0.0` | What the exit gate believes one leg costs. A sell below the middle band is blocked unless it clears twice this. |
+| `fee_pct` | `0.0` (gate off) | Exchange fee per leg, % of notional (Kraken taker: `0.80`). A sell below the middle band is blocked unless the move clears both legs. |
 | `stop_loss_pct` | `0.0` (off) | Exit when price falls this % below entry, ignoring the gate above. |
 | `trend_filter_enabled` | `false` | Only buy breakouts while the higher-timeframe trend EMA is rising. |
 | `trend_timeframe_minutes` | `240` | Timeframe for that trend filter. |
@@ -59,10 +59,11 @@ would realize a loss, so a losing position is held indefinitely — the strategy
 has no way out but a recovery that may not come. Enabling it is what ends
 bag-holding.
 
-**`fee_per_trade_usd` is a flat figure and real fees are not.** Kraken charges a
-percentage of notional, so a flat value is only correct at one position size.
-Set it to roughly `0.008 × your typical position` for a taker fill, and revisit
-it if you change position size.
+**`fee_pct` is a percentage, like the fee itself.** Kraken charges a percentage
+of notional, so the hurdle an exit must clear does not depend on position size.
+Change it only if your order type or volume tier changes. The old flat
+`fee_per_trade_usd` key is rejected at startup rather than ignored, because
+ignoring it would load the gate switched off.
 
 ## `[execution]`
 

@@ -3,8 +3,10 @@
 
 Mirrors `cryptotrader/strategy/bollinger.py` decision-for-decision, then lets
 individual rules be swapped so a proposed change can be measured instead of
-argued. The `baseline` variant must reproduce the real production trades --
-`--validate` asserts that, and every other number here is worthless if it fails.
+argued. The `baseline` variant is the live strategy as it stands now;
+`--validate` replays the rules production actually traded under across the
+validation window and asserts they reproduce the real trades -- every other
+number here is worthless if that fails.
 
 Decisions are taken when an hourly candle completes; the fill price is that
 candle's close, which is what the live bot records (the first tick of the next
@@ -36,7 +38,21 @@ DEFAULT_DB = "cryptotrader.db"
 # not move the percentage hurdle -- only the order type or the volume tier does.
 TAKER_PCT = 0.80
 MAKER_PCT = 0.40
-FEE_GATE_USD = 0.60   # what the live strategy's exit gate believes a leg costs
+# What the live exit gate believed one leg cost until #25 made it a percentage.
+# Kept so --validate can replay history under the rule it was traded under.
+FEE_GATE_USD = 0.60
+
+
+def _clears_fees(p: Params, close: float, entry: float, qty: float) -> bool:
+    """Would exiting at `close` get past the live exit gate?
+
+    The current gate compares the move with both legs' percentage fee, in which
+    position size cancels out (#25). The legacy gate compared profit on `qty`
+    with a flat dollar figure, which was only right at one position size.
+    """
+    if p.legacy_flat_gate_usd is not None:
+        return (close - entry) * qty >= p.legacy_flat_gate_usd * 2
+    return close - entry >= (close + entry) * p.fee_pct / 100
 
 
 @dataclass
@@ -50,11 +66,12 @@ class Params:
     trend_filter: bool = True
     trend_period: int = 50
     trend_tf: int = 240
-    # Real cost charged by the exchange, percent of notional per leg.
+    # Real cost charged by the exchange, percent of notional per leg. The live
+    # exit gate uses the same figure (#25).
     fee_pct: float = TAKER_PCT
-    # The live exit gate's flat threshold. Modelled separately because the code
-    # uses a fixed dollar figure that only matches reality at one position size.
-    fee_per_trade: float = FEE_GATE_USD
+    # Replay the flat-dollar gate production ran until #25 instead. None = the
+    # current percentage gate.
+    legacy_flat_gate_usd: float | None = None
 
     # --- swappable rules -------------------------------------------------
     # exit_mode: "mid_band"  = sell when close < middle band (live behaviour)
@@ -226,7 +243,7 @@ def run(pair: str, c60: list[tuple[datetime, float]], c240: list[tuple[datetime,
                 if close < mid:
                     gate_blocks = (
                         p.fee_gate and entry is not None
-                        and (close - entry) * qty < p.fee_per_trade * 2
+                        and not _clears_fees(p, close, entry, qty)
                     )
                     if not gate_blocks:
                         reason = "mid_band"
@@ -289,10 +306,18 @@ VARIANTS: dict[str, Params] = {
     # The one lever the fee data actually offers: limit orders pay maker rate.
     "maker-fees-0.4%": Params(fee_pct=MAKER_PCT),
     "maker+no-fee-gate": Params(fee_pct=MAKER_PCT, fee_gate=False),
+    # The flat-dollar exit gate production ran until #25, for comparison.
+    "legacy-flat-gate": Params(legacy_flat_gate_usd=FEE_GATE_USD),
 }
 
 
-# The live config only matches `Params()` defaults from 2026-07-26, when
+# The rules every trade in the validation window was actually taken under:
+# today's defaults except the exit gate, which was the flat-dollar figure until
+# #25. When the percentage gate has its own trade history, move VALIDATE_FROM
+# past its deploy and validate against Params() again.
+TRADED_UNDER = Params(legacy_flat_gate_usd=FEE_GATE_USD)
+
+# The live config only matches TRADED_UNDER from 2026-07-26, when
 # `stop_loss_pct = 10.0` shipped (a1451e3). Replaying today's rules over trades
 # taken under older rules proves nothing, so validation starts after that.
 VALIDATE_FROM = datetime.fromisoformat("2026-07-26T13:00:00+00:00")
@@ -312,7 +337,7 @@ EXPECTED_EXTRA = {
 
 
 def validate(db: str, _since: datetime | None) -> int:
-    """Assert the baseline replay reproduces the real production trades.
+    """Assert replaying the rules production traded under reproduces its trades.
 
     A trade is matched when the simulation acted on the candle that completed
     within ~a minute before the live order was stamped (decision at candle
@@ -327,7 +352,7 @@ def validate(db: str, _since: datetime | None) -> int:
     finally:
         conn.close()
 
-    print("Validating baseline replay against real production trades")
+    print("Validating the as-traded replay against real production trades")
     print(f"Window: from {VALIDATE_FROM:%Y-%m-%d} (when the live config last changed)\n")
     failures = 0
     for pair in sorted(PAIR_SIZING):
@@ -337,7 +362,7 @@ def validate(db: str, _since: datetime | None) -> int:
             print(f"  {pair}: no candle history — skipped")
             continue
         budget, qty = PAIR_SIZING[pair]
-        res = run(pair, c60, c240, Params(), budget, qty, "baseline",
+        res = run(pair, c60, c240, TRADED_UNDER, budget, qty, "as-traded",
                   trade_from=VALIDATE_FROM)
         # Compare only inside the window; the warm-up lead exists to make the
         # indicators valid, not to be checked against a different live config.
@@ -382,7 +407,7 @@ def validate(db: str, _since: datetime | None) -> int:
     if failures:
         print(f"FAILED — {failures} real trade(s) not reproduced. Harness is not faithful.")
     else:
-        print("PASS — every reproducible production trade is matched by the baseline replay.")
+        print("PASS — every reproducible production trade is matched by the as-traded replay.")
     return 1 if failures else 0
 
 

@@ -65,7 +65,7 @@ def test_restore_sets_in_position_after_buy(tmp_path):
     ))
 
     strategy = ThresholdStrategy(make_cfg(buy=50000, sell=60000))
-    strategy.restore(db_path, "BTC/USD")
+    strategy.restore(db_path, "BTC/USD", mode="production")
 
     # Position restored — tick below buy trigger must NOT fire another BUY
     tick = make_tick("BTC/USD", bid=48900, ask=49000, last=48950)
@@ -86,11 +86,67 @@ def test_restore_clears_position_after_sell(tmp_path):
     ))
 
     strategy = ThresholdStrategy(make_cfg(buy=50000, sell=60000))
-    strategy.restore(db_path, "BTC/USD")
+    strategy.restore(db_path, "BTC/USD", mode="production")
 
     # Last trade was SELL — position not held, BUY should fire
     tick = make_tick("BTC/USD", bid=48900, ask=49000, last=48950)
     assert strategy.evaluate(tick) == Signal.BUY
+
+
+# --- restore() reads only its own mode (#26) ----------------------------
+
+from cryptotrader.strategy.registry import ALL_STRATEGIES  # noqa: E402
+
+
+def _seed(db_path, strategy, side, mode, hour):
+    database.insert_trade(db_path, Trade(
+        pair="BTC/USD", side=side, price=49000.0, quantity=0.001, mode=mode,
+        strategy=strategy, timestamp=datetime(2026, 9, 1, hour, tzinfo=UTC),
+    ))
+
+
+def _any_cfg() -> CurrencyConfig:
+    return CurrencyConfig(quantity=0.001, max_order_usd=500.0)
+
+
+@pytest.mark.parametrize("cls", ALL_STRATEGIES, ids=lambda c: c.__name__)
+def test_production_restore_ignores_a_later_paper_trade(tmp_path, cls):
+    """A paper buy recorded after production went flat must not reopen it.
+
+    The trade log holds both modes. Unfiltered, the newest row wins, and a
+    production restart adopts a position nobody paid for — with a fabricated
+    entry price under the stop-loss.
+    """
+    db_path = str(tmp_path / "modes.db")
+    database.init_db(db_path)
+    strategy = cls(_any_cfg())
+    _seed(db_path, strategy.name, Side.BUY, "production", 0)
+    _seed(db_path, strategy.name, Side.SELL, "production", 1)
+    _seed(db_path, strategy.name, Side.BUY, "test", 2)
+
+    strategy.restore(db_path, "BTC/USD", mode="production")
+    assert strategy._in_position is False
+    assert getattr(strategy, "_entry_price", None) is None
+
+
+@pytest.mark.parametrize("cls", ALL_STRATEGIES, ids=lambda c: c.__name__)
+def test_test_mode_restore_resumes_its_own_paper_position(tmp_path, cls):
+    """The filter cuts both ways: a paper position must still survive a restart."""
+    db_path = str(tmp_path / "modes.db")
+    database.init_db(db_path)
+    strategy = cls(_any_cfg())
+    _seed(db_path, strategy.name, Side.BUY, "test", 0)
+    _seed(db_path, strategy.name, Side.SELL, "production", 1)
+
+    strategy.restore(db_path, "BTC/USD", mode="test")
+    assert strategy._in_position is True
+
+
+def test_restore_requires_a_mode(tmp_path):
+    """No default: a caller that forgets the mode must fail, not guess."""
+    strategy = ThresholdStrategy(make_cfg(buy=50000, sell=60000))
+    with pytest.raises(TypeError):
+        strategy.restore(str(tmp_path / "x.db"), "BTC/USD")
 
 
 def test_registry_returns_threshold():

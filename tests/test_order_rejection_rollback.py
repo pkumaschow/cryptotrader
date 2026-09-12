@@ -187,7 +187,7 @@ def _bollinger_config():
     return CurrencyConfig(
         strategy="bollinger", quantity=0.001, budget_usd=50.0, max_order_usd=500.0,
         bollinger=BollingerParams(min_band_width_pct=0.0, trend_filter_enabled=False,
-                                  stop_loss_pct=0.0, fee_per_trade_usd=0.0),
+                                  stop_loss_pct=0.0, fee_pct=0.0),
     )
 
 

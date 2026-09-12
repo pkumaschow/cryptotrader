@@ -30,14 +30,14 @@ class ThresholdStrategy(Strategy):
         self._sell_trigger = config.threshold.sell_trigger
         self._in_position = False
 
-    def restore(self, db_path: str, pair: str) -> None:
+    def restore(self, db_path: str, pair: str, *, mode: str) -> None:
         """Rebuild indicator history and position state from the database.
 
         Called once at startup. Without it a strategy would need hours of live
         ticks before its indicators were usable, and would have forgotten whether
         it holds a position.
         """
-        trades = database.query_trades(db_path, pair=pair, strategy=self.name)
+        trades = database.query_trades(db_path, pair=pair, mode=mode, strategy=self.name)
         if trades and trades[-1].side == Side.BUY:
             self._in_position = True
 
