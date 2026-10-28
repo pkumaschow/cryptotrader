@@ -101,9 +101,25 @@ class KrakenRest:
         return base64.b64encode(mac.digest()).decode()
 
     async def _post(self, endpoint: str, data: dict[str, Any]) -> dict[str, Any]:
+        """Signed private call, retried once on EAPI:Invalid nonce.
+
+        Kraken rejects a bad nonce before executing anything, so re-signing
+        with a fresh nonce is safe even for AddOrder. One retry only: a second
+        rejection means something real (another client on the key) and should
+        surface. (2026-09-25: a lone spurious rejection dropped a live SOL buy.)
+        """
+        try:
+            return await self._post_once(endpoint, data)
+        except RuntimeError as exc:
+            if "EAPI:Invalid nonce" not in str(exc):
+                raise
+            logger.warning("Kraken rejected nonce on %s, retrying once", endpoint)
+            return await self._post_once(endpoint, data)
+
+    async def _post_once(self, endpoint: str, data: dict[str, Any]) -> dict[str, Any]:
         await self._bucket.acquire()
         uri_path = f"/0/private/{endpoint}"
-        data["nonce"] = str(self._nonce())
+        data = {**data, "nonce": str(self._nonce())}
         signature = self._sign(uri_path, data)
         headers = {
             "API-Key": self._api_key,
