@@ -71,7 +71,10 @@ trivy-dep:
     TRIVY_CACHE_DIR: .trivycache/
     TRIVY_NO_PROGRESS: "true"
   script:
-    - trivy fs --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --scanners vuln "${CI_PROJECT_DIR}"
+    # Trivy only recognises pip files named requirements*.txt; without
+    # --file-patterns it silently skips requirements.lock, the file the Pi
+    # deploy installs from.
+    - trivy fs --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --scanners vuln --file-patterns 'pip:requirements\.lock' "${CI_PROJECT_DIR}"
   cache:
     key: trivy-cache
     paths:
