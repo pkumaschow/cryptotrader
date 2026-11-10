@@ -158,3 +158,88 @@ async def test_feed_healthy_false_beyond_threshold():
         fake.websocket.stale_threshold = 30
         ms.return_value = fake
         assert ws.feed_healthy() is False
+
+
+def _blocking_feed(ws: KrakenWebSocket):
+    """Patch connect so every attempt yields a socket whose receive loop never returns."""
+    state = {"connects": 0}
+
+    async def fake_wait_for(coro, timeout):
+        try:
+            coro.close()
+        except Exception:
+            pass
+        if timeout == 3:
+            raise TimeoutError
+        state["connects"] += 1
+        fake_ws = MagicMock()
+        fake_ws.send = AsyncMock()
+        fake_ws.close = AsyncMock()
+        return fake_ws
+
+    async def never_returns(_ws):
+        await asyncio.Event().wait()
+
+    patches = (
+        patch("cryptotrader.exchange.kraken_ws.asyncio.wait_for", fake_wait_for),
+        patch.object(ws, "_receive", never_returns),
+    )
+    return state, patches
+
+
+async def _stop(ws: KrakenWebSocket, task: asyncio.Task) -> None:
+    """Shut the loop down even if a regression swallows the cancel, so a failure fails fast."""
+    ws._running = False
+    if ws._receive_task is not None:
+        ws._receive_task.cancel()
+    task.cancel()
+    await asyncio.wait({task}, timeout=2)
+
+
+async def _until(pred, limit: float = 3.0) -> None:
+    loop = asyncio.get_running_loop()
+    end = loop.time() + limit
+    while not pred():
+        assert loop.time() < end, "condition not reached"
+        await asyncio.sleep(0.01)
+
+
+@pytest.mark.asyncio
+async def test_cancelling_the_feed_task_ends_it():
+    """A cancel aimed at the feed itself must end it, not trigger a reconnect.
+
+    Swallowing it hung shutdown forever: another task raised,
+    asyncio.run cancelled the feed, the feed reconnected, and the process sat
+    'active' with no trader and no traceback.
+    """
+    ws = KrakenWebSocket(["BTC/USD"], asyncio.Queue())
+    ws._running = True
+    state, (p1, p2) = _blocking_feed(ws)
+    with p1, p2:
+        task = asyncio.create_task(ws._connect_loop())
+        try:
+            await _until(lambda: ws._receive_task is not None)
+            task.cancel()
+            done, _ = await asyncio.wait({task}, timeout=2)
+        finally:
+            await _stop(ws, task)
+    assert task in done and task.cancelled()
+    assert state["connects"] == 1
+
+
+@pytest.mark.asyncio
+async def test_watchdog_cancel_of_receive_still_reconnects():
+    """The watchdog cancels only the receive task; that path must still reconnect."""
+    ws = KrakenWebSocket(["BTC/USD"], asyncio.Queue())
+    ws._running = True
+    state, (p1, p2) = _blocking_feed(ws)
+    with p1, p2:
+        task = asyncio.create_task(ws._connect_loop())
+        await _until(lambda: ws._receive_task is not None)
+        ws._receive_task.cancel()
+        await _until(lambda: state["connects"] == 2)
+        try:
+            assert not task.done()
+        finally:
+            await _stop(ws, task)
+    assert task.done()

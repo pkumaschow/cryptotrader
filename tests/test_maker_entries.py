@@ -183,12 +183,15 @@ def test_exits_are_never_made_maker(db, settings):
 
 
 def test_disabled_config_leaves_the_market_path_untouched(db, monkeypatch):
-    """Production has no [execution] block, so it must behave exactly as before."""
+    """A config without an opt-in must behave exactly as the market path always did."""
+    from cryptotrader.config import ExecutionConfig
+
+    assert ExecutionConfig().maker_entries is False, "must default off"
     get_settings.cache_clear()
     s = get_settings()
     monkeypatch.setattr(s.mode, "active", "test")
     monkeypatch.setattr(s.database, "path", db)
-    assert s.execution.maker_entries is False, "must default off"
+    monkeypatch.setattr(s.execution, "maker_entries", False)
 
     book = MakerBook(db)
     ex = TradeExecutor(maker_book=book)
@@ -200,8 +203,12 @@ def test_disabled_config_leaves_the_market_path_untouched(db, monkeypatch):
     get_settings.cache_clear()
 
 
-def test_production_config_does_not_enable_maker_entries():
-    """Guards the deployment split: staging opts in, production does not."""
+def test_production_config_enables_maker_entries():
+    """Guards the rollout: both deployments opt in, so neither silently reverts to taker.
+
+    Production opted in 2026-10-30 after the staging trial. Exits stay market
+    orders regardless (see ExecutionConfig).
+    """
     import tomllib
     from pathlib import Path
 
@@ -209,7 +216,7 @@ def test_production_config_does_not_enable_maker_entries():
     prod = tomllib.loads((root / "config" / "settings.toml").read_text())
     staging = tomllib.loads((root / "config" / "settings-staging.toml").read_text())
 
-    assert prod.get("execution", {}).get("maker_entries", False) is False
+    assert prod.get("execution", {}).get("maker_entries") is True
     assert staging.get("execution", {}).get("maker_entries") is True
 
 

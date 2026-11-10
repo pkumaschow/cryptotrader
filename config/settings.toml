@@ -4,6 +4,15 @@
 active = "production"
 max_daily_loss_usd = 75.00  # Circuit breaker: halt all trades once cumulative daily loss exceeds this amount
 
+[execution]
+# Post-only limit entries: Kraken maker 0.40% vs taker 0.80%. Exits stay market
+# orders. Staging trial 2026-08-28..10-29: 71/77 bollinger entries filled on
+# paper; production fills are confirmed against the exchange, not ticks.
+# Review the fill rate after the first 10 production entries.
+maker_entries = true
+maker_wait_seconds = 300     # cancel and skip the signal after this long
+maker_max_drift_pct = 0.5    # cancel early if price runs this far from the decision
+
 [database]
 path = "cryptotrader.db"
 

@@ -49,6 +49,7 @@ class BollingerStrategy(Strategy):
         self._min_bw_pct = p.min_band_width_pct
         self._fee_pct = p.fee_pct
         self._stop_loss_pct = p.stop_loss_pct
+        self._stop_on_tick = p.stop_on_tick
         self._candles = CandleBuilder(timeframe_minutes=60)
         self._trend_filter = p.trend_filter_enabled
         self._trend_period = p.trend_ema_period
@@ -113,6 +114,17 @@ class BollingerStrategy(Strategy):
             trend_completed = self._trend_candles.add_tick(tick)
             if trend_completed is not None and self._db_path is not None:
                 database.insert_candle(self._db_path, trend_completed)
+        if (
+            self._stop_on_tick
+            and self._in_position
+            and self._stop_loss_pct > 0
+            and self._entry_price is not None
+            and tick.last <= self._entry_price * (1 - self._stop_loss_pct / 100)
+        ):
+            self._arm_rollback()
+            self._in_position = False
+            self._entry_price = None
+            return Signal.SELL
         if completed is None:
             return None
         candles = self._candles.candles

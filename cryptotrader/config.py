@@ -56,6 +56,9 @@ class BollingerParams(BaseModel):
     # Stop-loss: exit a losing position when close falls this % below entry, regardless of the
     # small-profit gate. 0.0 = disabled. Prevents indefinite bag-holding in a downtrend.
     stop_loss_pct: float = Field(default=0.0, ge=0.0)
+    # Check the stop on every tick instead of only at the hourly close. Close-only lets a
+    # fast drop overshoot the stop by the rest of the candle.
+    stop_on_tick: bool = False
     # Gate breakout entries on a rising higher-timeframe trend EMA. Off by default;
     # enable per-currency for trending large-caps, leave off for high-volatility pairs.
     trend_filter_enabled: bool = False

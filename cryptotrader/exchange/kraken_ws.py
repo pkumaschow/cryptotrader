@@ -108,6 +108,12 @@ class KrakenWebSocket:
                 try:
                     await self._receive_task
                 except asyncio.CancelledError:
+                    # Only the watchdog's cancel of the receive task means "reconnect".
+                    # A cancel aimed at run() itself must propagate, or shutdown hangs
+                    # forever and the error that triggered it is never logged.
+                    current = asyncio.current_task()
+                    if current is not None and current.cancelling():
+                        raise
                     logger.info("Receive loop cancelled — reconnecting")
                 finally:
                     self._receive_task = None

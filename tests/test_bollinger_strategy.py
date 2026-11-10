@@ -258,3 +258,44 @@ def test_shipped_production_config_keeps_the_gate_on():
     assert bollinger_pairs, "precondition: production trades bollinger"
     for pair, cfg in bollinger_pairs.items():
         assert cfg.bollinger.fee_pct == pytest.approx(0.80), pair
+
+
+def _held_at_100(stop_on_tick: bool) -> BollingerStrategy:
+    params = BollingerParams(period=3, fee_pct=0.60, stop_loss_pct=10.0, stop_on_tick=stop_on_tick)
+    strategy = BollingerStrategy(CurrencyConfig(quantity=0.001, max_order_usd=500.0,
+                                                bollinger=params))
+    strategy._in_position = True
+    strategy._entry_price = 100.0  # stop at 90
+    for h in range(5):
+        strategy.evaluate(make_tick(100.0, h))
+    return strategy
+
+
+def test_tick_stop_exits_mid_candle_at_the_stop():
+    """With stop_on_tick the first trade through the stop exits, not the candle close."""
+    strategy = _held_at_100(stop_on_tick=True)
+    assert strategy.evaluate(make_tick(95.0, 5, minute=10)) is None
+    assert strategy.evaluate(make_tick(89.9, 5, minute=20)) == Signal.SELL
+    assert strategy._in_position is False
+    # Already out: the rest of the candle and its close produce nothing more.
+    assert strategy.evaluate(make_tick(80.0, 5, minute=30)) is None
+    assert strategy.evaluate(make_tick(80.0, 6)) is None
+
+
+def test_close_stop_default_ignores_mid_candle_dips():
+    """Default behaviour is unchanged: a dip that recovers by the close does not exit."""
+    strategy = _held_at_100(stop_on_tick=False)
+    assert strategy.evaluate(make_tick(85.0, 5, minute=20)) is None
+    strategy.evaluate(make_tick(99.0, 5, minute=40))
+    assert strategy.evaluate(make_tick(99.0, 6)) is None
+    assert strategy._in_position is True
+
+
+def test_shipped_production_config_keeps_close_stop():
+    """The tick stop is a staging trial; production must not pick it up by accident."""
+    import tomllib
+    from pathlib import Path
+
+    cfg = tomllib.loads((Path(__file__).parent.parent / "config/settings.toml").read_text())
+    for pair, table in cfg["currencies"].items():
+        assert not table.get("bollinger", {}).get("stop_on_tick", False), pair

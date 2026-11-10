@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A crash in any task left the bot hung and silent.** When the trader, maker
+  or health task raised, `asyncio.run` cancelled the WebSocket feed, which
+  treated that cancel as a dropped connection and reconnected forever. The
+  process stayed `active` with no trader, no candles, no `/health` and no
+  traceback, so systemd never restarted it. The
+  feed now lets a cancel aimed at itself propagate, so the error is logged, the
+  process exits and `Restart=always` brings it back. The watchdog's reconnect
+  path is unchanged.
+
+### Added
+
+- **`stop_on_tick` bollinger option** (default off). Checks the stop-loss on
+  every tick instead of only at the hourly close, so a fast drop exits near the
+  stop price rather than overshooting by the rest of the candle. Enabled for BTC/ETH in staging only; the
+  shipped production config is tested to keep it off.
+
 ## [1.2.0] - 2026-08-28
 
 Two of the fixes below correct bugs that could lose real money in production.

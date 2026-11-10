@@ -3,8 +3,8 @@
 # Deploys the current main branch to the Pi.
 #
 # Usage:
-#   ./deploy/deploy-local.sh
-#   ./deploy/deploy-local.sh --skip-pull   # skip git pull, deploy local working tree
+#   ./deploy/deploy-local.sh --break-glass               # only when GitLab CI is down
+#   ./deploy/deploy-local.sh --break-glass --skip-pull   # skip git pull, deploy local working tree
 set -euo pipefail
 
 PI_USER="${PI_USER:-peterk}"
@@ -13,8 +13,21 @@ DEPLOY_PATH="/opt/cryptotrader"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 SKIP_PULL=false
-if [[ "${1:-}" == "--skip-pull" ]]; then
-  SKIP_PULL=true
+BREAK_GLASS=false
+for arg in "$@"; do
+  case "$arg" in
+    --skip-pull) SKIP_PULL=true ;;
+    --break-glass) BREAK_GLASS=true ;;
+  esac
+done
+
+# Production changes go through the GitLab pipeline (manual `deploy` job), so every
+# deploy is a reviewed commit that has passed lint, tests and Trivy. This script
+# stays only for when CI itself is down.
+if [[ "$BREAK_GLASS" == false ]]; then
+  echo "Refusing: production deploys run through GitLab CI/CD (manual 'deploy' job)." >&2
+  echo "Only if CI is unavailable, re-run with --break-glass." >&2
+  exit 1
 fi
 
 echo "╔══════════════════════════════════════╗"
@@ -43,6 +56,7 @@ ssh "${PI_USER}@${PI_HOST}" "sudo chown -R ${PI_USER}:cryptotrader ${DEPLOY_PATH
 echo ""
 echo "==> Syncing to ${PI_USER}@${PI_HOST}:${DEPLOY_PATH}"
 rsync -avz --delete \
+  --chmod=Do-w,Fo-w \
   --exclude='.git' \
   --exclude='venv' \
   --exclude='.venv' \
